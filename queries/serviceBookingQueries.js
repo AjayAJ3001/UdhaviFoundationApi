@@ -1110,6 +1110,47 @@ async function getCustomerBookings(customer_id, limit = 10) {
     return results;
 }
 
+
+// Get interview details by provider_id
+const getInterviewDetailsByProviderId = async (provider_id) => {
+    try {
+        const query = `
+            SELECT 
+                sb.booking_id,
+                sb.customer_id,
+                sb.service_id,
+                sb.assigned_provider_id,
+                sb.interview_status,
+                sb.interview_date,
+                sb.interview_time,
+                sb.service_address,
+                sb.service_start_date,
+                sb.service_end_date,
+                sb.base_cost,
+                sb.tax_amount,
+                sb.discount_amount,
+                sb.total_amount,
+                sb.booking_status,
+                sb.payment_status,
+                sb.created_at,
+                sb.updated_at,
+                c.full_name AS customer_name,
+                c.mobile_number AS customer_mobile,
+                c.email_address AS customer_email
+            FROM service_bookings sb
+            LEFT JOIN account_information c ON sb.customer_id = c.registration_id
+            WHERE sb.assigned_provider_id = ?
+            ORDER BY sb.interview_date DESC
+        `;
+        const [rows] = await db.execute(query, [provider_id]);
+        return rows;
+    } catch (error) {
+        console.error('getInterviewDetailsByProviderId query error:', error);
+        throw error;
+    }
+};
+
+
 module.exports = {
     getActiveProviders,
     saveProviderServiceConfiguration,
@@ -1119,6 +1160,7 @@ module.exports = {
     getAllActiveServices,
     getServiceById,
     getServiceBasePrice,
+    
     
     // Filter queries
     getServiceFilters,
@@ -1152,5 +1194,6 @@ module.exports = {
     getServiceWithFilterPricing,
     getFilterPricing,
     getServiceFiltersAndPricing,
-    getCustomerBookings
+    getCustomerBookings,
+    getInterviewDetailsByProviderId
 };

@@ -763,6 +763,10 @@ router.get("/booked-users/:registration_id", ServiceBookingController.getBookedU
 router.get("/admin/bookings/:booking_id", ServiceBookingController.getAdminBookingById);
 
 
-
+// ✅ Interview Details by Provider ID
+router.get(
+  '/provider/:provider_id/interview-details',
+  ServiceBookingController.getInterviewDetailsByProviderId
+);
 
 module.exports = router;

@@ -3934,79 +3934,78 @@ static async toggleProviderConfigurationStatus(req, res) {
 
  // ✅ NEW: Get Provider Configurations by Mobile Number
 static async getProviderConfigurationsByMobile(req, res) {
-    const { mobile_number } = req.params;
-    console.log('📞 Received mobile number:', mobile_number);
+  const { mobile_number } = req.params;
+  console.log('📞 Received mobile number:', mobile_number);
 
-    try {
-      const query = `
-        SELECT 
-          psc.config_id AS id,
-          psc.provider_id,
-          psc.service_id,
-          psc.service_name,
-          psc.category_name,
-          psc.base_rate,
-          psc.base_rate_type,
-          psc.tax_percentage,
-          psc.status,
-          psc.service_image_url,
-          psc.is_active,
-          psc.created_at,
-          psc.updated_at,
-          psc.city,
-          psc.pincode,
-          psc.latitude,
-          psc.longitude,
-          ai.full_name AS provider_name,
-          ai.mobile_number AS provider_mobile,
-          ai.email_address AS provider_email
-        FROM provider_service_configurations psc
-        JOIN account_information ai 
-          ON psc.provider_id = ai.registration_id
-        WHERE ai.mobile_number = ?
-          AND psc.is_active = 1
-        ORDER BY psc.created_at DESC
-      `;
+  try {
+    const query = `
+      SELECT 
+        psc.config_id AS id,
+        psc.provider_id,
+        psc.service_id,
+        psc.service_name,
+        psc.category_name,
+        psc.base_rate,
+        psc.base_rate_type,
+        psc.tax_percentage,
+        psc.status,
+        psc.service_image_url,
+        psc.is_active,
+        psc.created_at,
+        psc.updated_at,
+        psc.city,
+        psc.pincode,
+        psc.latitude,
+        psc.longitude,
+        ai.full_name AS provider_name,         -- ✅ correct column
+        ai.mobile_number AS provider_mobile,
+        ai.email_address AS provider_email
+      FROM provider_service_configurations psc
+      JOIN account_information ai 
+        ON psc.provider_id = ai.registration_id
+      WHERE ai.mobile_number = ?
+      ORDER BY psc.created_at DESC
+    `;
 
-      const [rows] = await db.execute(query, [mobile_number]);
-      console.log('📊 DB Result:', rows);
+    const [rows] = await db.execute(query, [mobile_number]);
+    console.log('📊 DB Result:', rows);
 
-      if (rows.length === 0) {
-        return res.json({
-          success: true,
-          message: 'No provider configurations found for this mobile number',
-          data: {
-            configurations: [],
-            total_count: 0
-          }
-        });
-      }
-
-      const configurations = ServiceBookingController.mapConfig(rows);
-
+    if (rows.length === 0) {
       return res.json({
         success: true,
-        message: 'Provider configurations retrieved successfully',
+        message: 'No provider configurations found for this mobile number',
         data: {
-          configurations,
-          total_count: configurations.length
+          configurations: [],
+          total_count: 0
         }
       });
-
-    } catch (error) {
-      console.error('❌ Error in getProviderConfigurationsByMobile:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Server error retrieving provider configurations',
-        error: error.message
-      });
     }
+
+    const configurations = ServiceBookingController.mapConfig(rows);
+
+    return res.json({
+      success: true,
+      message: 'Provider configurations retrieved successfully',
+      data: {
+        configurations,
+        total_count: configurations.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error in getProviderConfigurationsByMobile:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error retrieving provider configurations',
+      error: error.message
+    });
   }
+}
 
   // 🧮 Helper method to map DB rows to API response
   static mapConfig(rows) {
     return rows.map(config => {
-      const baseRate = parseFloat(config.base_rate);
+      const baseRate = parseFloat(config.base_rate || 0);
       const taxPercentage = parseFloat(config.tax_percentage || 0);
       const taxAmount = (baseRate * taxPercentage) / 100;
       const finalAmount = baseRate + taxAmount;
@@ -4023,7 +4022,7 @@ static async getProviderConfigurationsByMobile(req, res) {
           longitude: config.longitude || null
         },
         status: config.status,
-        provider: config.provider_name,
+        provider: config.provider_name || 'Unknown Provider', // ✅ always show name
         estimated_salary: `Rs.${Math.round(finalAmount)}`,
         featured: false,
         service_image: config.service_image_url
@@ -4034,14 +4033,16 @@ static async getProviderConfigurationsByMobile(req, res) {
         tax_percentage: config.tax_percentage,
         final_amount_with_tax: finalAmount,
         provider_contact: {
-          mobile: config.provider_mobile,
-          email: config.provider_email
+          mobile: config.provider_mobile || null,
+          email: config.provider_email || null
         },
         created_at: config.created_at,
         updated_at: config.updated_at
       };
     });
   }
+
+
   static async getBookedUsersByRegistrationId(req, res) {
     const { registration_id } = req.params;
     console.log("📋 Received registration_id:", registration_id);
@@ -4545,6 +4546,152 @@ static async getAdminBookingById(req, res) {
     });
   }
 }
+// static async getInterviewDetailsByProviderId(req, res) {
+//     const { provider_id } = req.params;
+
+//     console.log("Fetching interview details for provider:", provider_id);
+
+//     if (!provider_id) {
+//         return res.status(400).json({
+//             success: false,
+//             message: "Provider ID is required",
+//         });
+//     }
+
+//     const query = `
+//         SELECT 
+//             sb.booking_id,
+//             sb.customer_id,
+//             sb.service_id,
+//             sb.assigned_provider_id,
+//             sb.interview_status,
+//             sb.interview_date,
+//             sb.interview_time,
+//             sb.service_address,
+//             sb.service_start_date,
+//             sb.service_end_date,
+//             sb.base_cost,
+//             sb.tax_amount,
+//             sb.discount_amount,
+//             sb.total_amount,
+//             sb.booking_status,
+//             sb.payment_status,
+//             sb.created_at,
+//             sb.updated_at,
+//             c.full_name AS customer_name,
+//             c.mobile_number AS customer_mobile,
+//             c.email_address AS customer_email,
+//             s.service_description AS service_name
+//         FROM service_bookings sb
+//         LEFT JOIN account_information c ON sb.customer_id = c.registration_id
+//         LEFT JOIN service_information s ON sb.service_id = s.service_info_id
+//         WHERE sb.assigned_provider_id = ?
+//         ORDER BY sb.interview_date DESC
+//     `;
+
+//     try {
+//         db.query(query, [provider_id], (err, results) => {
+//             if (err) {
+//                 console.error("SQL Error:", err);
+//                 return res.status(500).json({
+//                     success: false,
+//                     message: "Database query error",
+//                     error: err.message,
+//                 });
+//             }
+
+//             if (!results || results.length === 0) {
+//                 return res.status(404).json({
+//                     success: false,
+//                     message: "No interview details found for this provider",
+//                 });
+//             }
+
+//             console.log("✅ Interview results found:", results.length);
+//             return res.status(200).json({
+//                 success: true,
+//                 message: "Interview details retrieved successfully",
+//                 data: results,
+//             });
+//         });
+//     } catch (error) {
+//         console.error("❌ Controller Error:", error);
+//         return res.status(500).json({
+//             success: false,
+//             message: "Internal server error",
+//             error: error.message,
+//         });
+//     }
+// }
+// static async getInterviewDetailsByProviderId(req, res) {
+//   try {
+//     const providerId = req.params.provider_id;
+//     console.log("Fetching interview details for provider:", providerId);
+
+//     // 🧠 Temporary dummy response (replace with actual DB logic later)
+//     return res.status(200).json({
+//       success: true,
+//       message: "Test: Interview details route working successfully!",
+//       data: {
+//         provider_id: providerId,
+//         interview_status: "Pending",
+//         interview_date: "2025-10-30",
+//         interview_time: "10:00 AM"
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Error in getInterviewDetailsByProviderId:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error fetching interview details",
+//       error: error.message
+//     });
+//   }
+// }
+
+    static async getInterviewDetailsByProviderId(req, res) {
+        try {
+            const { provider_id } = req.params;
+            console.log("Fetching interview details for provider:", provider_id);
+
+            // Validate provider ID
+            if (!provider_id) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Provider ID is required",
+                });
+            }
+
+            // Fetch from query file
+            const results = await serviceBookingQueries.getInterviewDetailsByProviderId(provider_id);
+
+            if (!results || results.length === 0) {
+                console.log(`⚠️ No interview details found for provider ${provider_id}`);
+                return res.status(404).json({
+                    success: false,
+                    message: "No interview details found for this provider",
+                });
+            }
+
+            console.log(`✅ Found ${results.length} interview records for provider ${provider_id}`);
+            return res.status(200).json({
+                success: true,
+                message: "Interview details retrieved successfully",
+                data: results,
+            });
+
+        } catch (error) {
+            console.error("❌ Error in getInterviewDetailsByProviderId:", error);
+            return res.status(500).json({
+                success: false,
+                message: "Server error fetching interview details",
+                error: error.message,
+            });
+        }
+    }
+
+
 
 
 }

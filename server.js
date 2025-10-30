@@ -721,6 +721,11 @@ if (serviceBookingController) {
       serviceBookingController.getAllProviderConfigurations
   );
 
+  // ✅ Get Provider Configurations by Mobile Number
+app.get('/api/booking/provider-configurations/:mobile_number',
+  serviceBookingController.getProviderConfigurationsByMobile
+);
+
   app.put('/api/booking/provider-configurations/:configId',
       uploadConfigs.serviceImage,
       handleUploadError,
@@ -1019,9 +1024,12 @@ if (serviceBookingController) {
     serviceBookingController.getAllProviderConfigurations
   );
 
-     app.get('/api/booking/provider-configurations/:mobile_number',
-    serviceBookingController.getProviderConfigurationsByMobile
-);
+//      app.get('/api/booking/provider-configurations/:mobile_number',
+//     serviceBookingController.getProviderConfigurationsByMobile
+// );
+
+
+
 
   app.put('/api/booking/provider-configurations/:configId',
     uploadConfigs.serviceImage,
@@ -1086,6 +1094,11 @@ if (serviceBookingController) {
   ],
   handleValidationErrors,
   serviceBookingController.getAdminBookingById
+);
+
+app.get(
+  '/api/booking/provider/:provider_id/interview-details',
+  serviceBookingController.getInterviewDetailsByProviderId
 );
 
   // ==========================================
