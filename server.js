@@ -126,6 +126,10 @@ if (directRegistrationController) {
 } else {
   console.warn('⚠️  Direct Registration routes skipped - controller not found');
 }
+
+
+
+
 // Upload middleware helper
 const getUploadMiddleware = (configName) =>
   uploadConfigs[configName] && handleUploadError
@@ -1293,7 +1297,89 @@ app.get(
   console.warn('⚠️  Service Booking routes skipped - controller not found');
 }
 
+const attendancePayrollController = loadModule('./controller/attendancePayrollController', 'Attendance & Payroll Controller');
+// === ATTENDANCE & PAYROLL ROUTES ===
+if (attendancePayrollController) {
+  try {
+    const attendancePayrollRoutes = require('./routes/attendancePayrollRoutes');
+    app.use('/api/attendance-payroll', attendancePayrollRoutes);
+    console.log('✅ Attendance & Payroll routes registered at /api/attendance-payroll');
+    
+    // Add documentation endpoint
+    app.get('/api/attendance-payroll/docs', (req, res) => {
+      res.json({
+        title: 'Attendance & Payroll API Documentation',
+        version: '1.0.0',
+        description: 'Complete attendance tracking and payroll management system',
+        baseURL: '/api/attendance-payroll',
+        features: [
+          'Salary configuration management',
+          'Punch-in/Punch-out with GPS tracking',
+          'Manual attendance entry',
+          'Leave management system',
+          'Automatic payroll generation',
+          'Payment processing',
+          'Comprehensive reporting'
+        ],
+        endpoints: {
+          salaryConfig: {
+            create: 'POST /salary-config - Create/update salary configuration',
+            get: 'GET /salary-config/:booking_id - Get salary config by booking'
+          },
+          attendance: {
+            punchIn: 'POST /punch-in - Mark check-in with GPS location',
+            punchOut: 'POST /punch-out - Mark check-out with GPS location',
+            manualEntry: 'POST /manual-attendance - Manual attendance entry',
+            markDelay: 'PUT /mark-delay - Mark delay with notes',
+            getByDate: 'GET /attendance/:provider_id/:date - Get attendance by date',
+            getMonthly: 'GET /monthly-attendance/:provider_id/:month/:year - Monthly attendance',
+            getCustomerData: 'GET /customer-attendance/:customer_id/:month/:year - Customer attendance data'
+          },
+          leave: {
+            apply: 'POST /apply-leave - Apply for leave',
+            updateStatus: 'PUT /leave/:leave_id/status - Approve/reject leave',
+            history: 'GET /leave-history/:provider_id - Leave history',
+            pending: 'GET /pending-leaves/:customer_id - Pending leaves'
+          },
+          payroll: {
+            generate: 'POST /generate-payroll - Generate monthly payroll',
+            getById: 'GET /payroll/:payroll_id - Get payroll details (payslip)',
+            getByProvider: 'GET /payrolls/:provider_id - All payrolls for provider',
+            getByCustomer: 'GET /customer-payrolls/:customer_id - Customer payrolls',
+            markPaid: 'PUT /payroll/:payroll_id/mark-paid - Mark as paid',
+            pending: 'GET /pending-payrolls - Get pending payrolls',
+            dashboard: 'GET /dashboard/:customer_id - Payroll dashboard'
+          }
+        },
+        workflow: {
+          daily: [
+            '1. Customer marks provider punch-in (with GPS)',
+            '2. Provider works throughout the day',
+            '3. Customer marks provider punch-out (with GPS)',
+            '4. System calculates hours worked'
+          ],
+          monthly: [
+            '1. Month ends',
+            '2. Generate payroll based on attendance',
+            '3. Review and approve payroll',
+            '4. Mark as paid with payment details'
+          ],
+          leave: [
+            '1. Provider applies for leave',
+            '2. Customer approves/rejects',
+            '3. If approved, automatically marked in attendance',
+            '4. Deducted from payroll if unpaid'
+          ]
+        }
+      });
+    });
 
+  } catch (err) {
+    console.error('❌ Failed to load attendance & payroll routes:', err.message);
+  }
+} else {
+  console.warn('⚠️  Attendance & Payroll routes skipped - controller not found');
+}
 
 // 4. ADD DIRECT REGISTRATION ROUTES (after existing route registrations)
 // === Direct Registration Routes (NO SESSION TOKEN REQUIRED) ===
