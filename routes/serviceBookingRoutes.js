@@ -769,4 +769,10 @@ router.get(
   ServiceBookingController.getInterviewDetailsByProviderId
 );
 
+// ✅ Assigned details API
+router.get(
+  "/provider/:provider_id/assigned-details",
+  ServiceBookingController.getAssignedDetailsByProvider
+);
+
 module.exports = router;

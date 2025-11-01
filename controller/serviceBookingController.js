@@ -4690,9 +4690,66 @@ static async getAdminBookingById(req, res) {
             });
         }
     }
+  // ✅ Assigned Interview Details for Provider
+    static async getAssignedDetailsByProvider(req, res) {
+        try {
+            const { provider_id } = req.params;
 
+            if (!provider_id) {
+                return res.status(400).json({
+                    success: false,
+                    message: "provider_id is required"
+                });
+            }
 
+            const results = await serviceBookingQueries.getAssignedDetailsByProviderId(provider_id);
 
+            if (!results || results.length === 0) {
+                return res.status(200).json({
+                    success: true,
+                    message: "No assigned interviews yet",
+                    provider_id,
+                    assigned_details: []
+                });
+            }
+
+            const assignedDetails = results.map(data => {
+                const final_cost =
+                    Number(data.base_cost || 0) +
+                    Number(data.tax_amount || 0) -
+                    Number(data.discount_amount || 0);
+
+                return {
+                    booking_id: data.booking_id,
+                    customer_name: data.customer_name,
+                    customer_mobile: data.customer_mobile,
+                    date_time: `${data.interview_date} ${data.interview_time}`,
+                    shift_time: data.shift_time || "N/A",
+                    crm_user: data.assigned_crm_name || "N/A",
+                    crm_mobile: data.crm_mobile || "N/A",
+                    base_cost: data.base_cost,
+                    tax_amount: data.tax_amount,
+                    discount_amount: data.discount_amount,
+                    final_cost
+                };
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: "Assigned interview details fetched successfully",
+                provider_id,
+                assigned_details: assignedDetails
+            });
+
+        } catch (error) {
+            console.error("Exception in getAssignedDetailsByProvider:", error);
+            return res.status(500).json({
+                success: false,
+                message: "Unexpected server error",
+                error: error.message
+            });
+        }
+    }
 
 }
 

@@ -1104,6 +1104,11 @@ app.get(
   '/api/booking/provider/:provider_id/interview-details',
   serviceBookingController.getInterviewDetailsByProviderId
 );
+app.get(
+  '/api/booking/provider/:provider_id/assigned-details',
+  serviceBookingController.getAssignedDetailsByProvider
+);
+
 
   // ==========================================
   // ADMIN BOOKING MANAGEMENT ROUTES ⭐ CRITICAL
