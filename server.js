@@ -1302,7 +1302,90 @@ app.get(
   console.warn('⚠️  Service Booking routes skipped - controller not found');
 }
 
-const attendancePayrollController = loadModule('./controller/attendancePayrollController', 'Attendance & Payroll Controller');
+ const attendancePayrollController = loadModule('./controller/attendancePayrollController', 'Attendance & Payroll Controller');
+// // === ATTENDANCE & PAYROLL ROUTES ===
+// if (attendancePayrollController) {
+//   try {
+//     const attendancePayrollRoutes = require('./routes/attendancePayrollRoutes');
+//     app.use('/api/attendance-payroll', attendancePayrollRoutes);
+//     console.log('✅ Attendance & Payroll routes registered at /api/attendance-payroll');
+    
+//     // Add documentation endpoint
+//     app.get('/api/attendance-payroll/docs', (req, res) => {
+//       res.json({
+//         title: 'Attendance & Payroll API Documentation',
+//         version: '1.0.0',
+//         description: 'Complete attendance tracking and payroll management system',
+//         baseURL: '/api/attendance-payroll',
+//         features: [
+//           'Salary configuration management',
+//           'Punch-in/Punch-out with GPS tracking',
+//           'Manual attendance entry',
+//           'Leave management system',
+//           'Automatic payroll generation',
+//           'Payment processing',
+//           'Comprehensive reporting'
+//         ],
+//         endpoints: {
+//           salaryConfig: {
+//             create: 'POST /salary-config - Create/update salary configuration',
+//             get: 'GET /salary-config/:booking_id - Get salary config by booking'
+//           },
+//           attendance: {
+//             punchIn: 'POST /punch-in - Mark check-in with GPS location',
+//             punchOut: 'POST /punch-out - Mark check-out with GPS location',
+//             manualEntry: 'POST /manual-attendance - Manual attendance entry',
+//             markDelay: 'PUT /mark-delay - Mark delay with notes',
+//             getByDate: 'GET /attendance/:provider_id/:date - Get attendance by date',
+//             getMonthly: 'GET /monthly-attendance/:provider_id/:month/:year - Monthly attendance',
+//             getCustomerData: 'GET /customer-attendance/:customer_id/:month/:year - Customer attendance data'
+//           },
+//           leave: {
+//             apply: 'POST /apply-leave - Apply for leave',
+//             updateStatus: 'PUT /leave/:leave_id/status - Approve/reject leave',
+//             history: 'GET /leave-history/:provider_id - Leave history',
+//             pending: 'GET /pending-leaves/:customer_id - Pending leaves'
+//           },
+//           payroll: {
+//             generate: 'POST /generate-payroll - Generate monthly payroll',
+//             getById: 'GET /payroll/:payroll_id - Get payroll details (payslip)',
+//             getByProvider: 'GET /payrolls/:provider_id - All payrolls for provider',
+//             getByCustomer: 'GET /customer-payrolls/:customer_id - Customer payrolls',
+//             markPaid: 'PUT /payroll/:payroll_id/mark-paid - Mark as paid',
+//             pending: 'GET /pending-payrolls - Get pending payrolls',
+//             dashboard: 'GET /dashboard/:customer_id - Payroll dashboard'
+//           }
+//         },
+//         workflow: {
+//           daily: [
+//             '1. Customer marks provider punch-in (with GPS)',
+//             '2. Provider works throughout the day',
+//             '3. Customer marks provider punch-out (with GPS)',
+//             '4. System calculates hours worked'
+//           ],
+//           monthly: [
+//             '1. Month ends',
+//             '2. Generate payroll based on attendance',
+//             '3. Review and approve payroll',
+//             '4. Mark as paid with payment details'
+//           ],
+//           leave: [
+//             '1. Provider applies for leave',
+//             '2. Customer approves/rejects',
+//             '3. If approved, automatically marked in attendance',
+//             '4. Deducted from payroll if unpaid'
+//           ]
+//         }
+//       });
+//     });
+
+//   } catch (err) {
+//     console.error('❌ Failed to load attendance & payroll routes:', err.message);
+//   }
+// } else {
+//   console.warn('⚠️  Attendance & Payroll routes skipped - controller not found');
+// }
+
 // === ATTENDANCE & PAYROLL ROUTES ===
 if (attendancePayrollController) {
   try {
@@ -1314,8 +1397,8 @@ if (attendancePayrollController) {
     app.get('/api/attendance-payroll/docs', (req, res) => {
       res.json({
         title: 'Attendance & Payroll API Documentation',
-        version: '1.0.0',
-        description: 'Complete attendance tracking and payroll management system',
+        version: '2.0.0', // Updated version
+        description: 'Complete attendance tracking and payroll management system with screen-specific APIs',
         baseURL: '/api/attendance-payroll',
         features: [
           'Salary configuration management',
@@ -1324,7 +1407,9 @@ if (attendancePayrollController) {
           'Leave management system',
           'Automatic payroll generation',
           'Payment processing',
-          'Comprehensive reporting'
+          'Comprehensive reporting',
+          'Screen-specific filtered views', // NEW
+          'Data export capabilities' // NEW
         ],
         endpoints: {
           salaryConfig: {
@@ -1354,6 +1439,16 @@ if (attendancePayrollController) {
             markPaid: 'PUT /payroll/:payroll_id/mark-paid - Mark as paid',
             pending: 'GET /pending-payrolls - Get pending payrolls',
             dashboard: 'GET /dashboard/:customer_id - Payroll dashboard'
+          },
+          // NEW: Screen-specific APIs
+          screenAPIs: {
+            manageLeave: 'GET /leaves/all - Manage Leave Screen (with filters: status, customer_id, search)',
+            manageAttendance: 'GET /attendances/all - Manage Attendance Screen (with filters: status, customer_id, month, year, date, search)',
+            managePayroll: 'GET /payrolls/all - Manage Payroll Screen (with filters: status, month, year, customer_id, search)',
+            payrollDetails: 'GET /payroll/:id/details - Payroll Details Screen (complete view)',
+            exportLeaves: 'GET /leaves/export - Export all leaves to CSV',
+            exportAttendances: 'GET /attendances/export - Export attendances to CSV',
+            exportPayrolls: 'GET /payrolls/export - Export payrolls to CSV'
           }
         },
         workflow: {
@@ -1374,7 +1469,29 @@ if (attendancePayrollController) {
             '2. Customer approves/rejects',
             '3. If approved, automatically marked in attendance',
             '4. Deducted from payroll if unpaid'
+          ],
+          // NEW: Screen workflows
+          screens: [
+            '1. View all records with filters on screen-specific endpoints',
+            '2. Filter by status, date range, customer, or search',
+            '3. Click View to see details',
+            '4. Click Paid to mark payroll as paid',
+            '5. Export data to CSV/Excel'
           ]
+        },
+        // NEW: Available filters
+        filters: {
+          leaves: ['status (PENDING|APPROVED|REJECTED|CANCELLED)', 'customer_id', 'search'],
+          attendances: ['status (PRESENT|ABSENT|LATE|LEAVE|HALF_DAY)', 'customer_id', 'date', 'month', 'year', 'search'],
+          payrolls: ['status (PAID|PENDING|ON-HOLD|CANCELLED)', 'month', 'year', 'customer_id', 'search']
+        },
+        // NEW: Example URLs
+        examples: {
+          getPendingLeaves: '/api/attendance-payroll/leaves/all?status=PENDING',
+          getOctoberAttendance: '/api/attendance-payroll/attendances/all?month=10&year=2025',
+          getPendingPayments: '/api/attendance-payroll/payrolls/all?status=PENDING',
+          getPayrollDetails: '/api/attendance-payroll/payroll/1/details',
+          exportCurrentMonthPayroll: '/api/attendance-payroll/payrolls/export?month=11&year=2025'
         }
       });
     });

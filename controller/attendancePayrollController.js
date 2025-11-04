@@ -994,6 +994,318 @@ class AttendancePayrollController {
             });
         }
     }
+
+    // Add these methods to your AttendancePayrollController class
+
+    // ==========================================
+    // SCREEN-SPECIFIC ENDPOINTS
+    // ==========================================
+
+    /**
+     * Get all leaves with filters - MANAGE LEAVE SCREEN
+     * GET /api/attendance-payroll/leaves/all
+     */
+    static async getAllLeaves(req, res) {
+        try {
+            const { status, customer_id, search } = req.query;
+
+            const filters = {
+                status: status || null,
+                customer_id: customer_id ? parseInt(customer_id) : null,
+                search: search || null
+            };
+
+            const leaves = await attendancePayrollQueries.getAllLeavesWithFilters(filters);
+            const summary = await attendancePayrollQueries.getLeavesSummary();
+
+            res.json({
+                success: true,
+                message: 'Leaves retrieved successfully',
+                data: {
+                    leaves,
+                    summary
+                }
+            });
+
+        } catch (error) {
+            console.error('Get all leaves error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch leaves',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Get all attendances with filters - MANAGE ATTENDANCE SCREEN
+     * GET /api/attendance-payroll/attendances/all
+     */
+    static async getAllAttendances(req, res) {
+        try {
+            const { 
+                status, 
+                customer_id, 
+                date, 
+                month, 
+                year, 
+                search 
+            } = req.query;
+
+            const filters = {
+                status: status || null,
+                customer_id: customer_id ? parseInt(customer_id) : null,
+                date: date || null,
+                month: month ? parseInt(month) : null,
+                year: year ? parseInt(year) : null,
+                search: search || null
+            };
+
+            const attendances = await attendancePayrollQueries.getAllAttendancesWithFilters(filters);
+            const summary = await attendancePayrollQueries.getAttendancesSummary(
+                filters.month, 
+                filters.year
+            );
+
+            res.json({
+                success: true,
+                message: 'Attendances retrieved successfully',
+                data: {
+                    attendances,
+                    summary
+                }
+            });
+
+        } catch (error) {
+            console.error('Get all attendances error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch attendances',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Get all payrolls with filters - MANAGE PAYROLL SCREEN
+     * GET /api/attendance-payroll/payrolls/all
+     */
+    static async getAllPayrolls(req, res) {
+        try {
+            const { 
+                status, 
+                month, 
+                year, 
+                customer_id, 
+                search 
+            } = req.query;
+
+            const filters = {
+                status: status || null,
+                month: month ? parseInt(month) : null,
+                year: year ? parseInt(year) : null,
+                customer_id: customer_id ? parseInt(customer_id) : null,
+                search: search || null
+            };
+
+            const payrolls = await attendancePayrollQueries.getAllPayrollsWithFilters(filters);
+            const summary = await attendancePayrollQueries.getPayrollsSummary(
+                filters.month, 
+                filters.year
+            );
+
+            res.json({
+                success: true,
+                message: 'Payrolls retrieved successfully',
+                data: {
+                    payrolls,
+                    summary
+                }
+            });
+
+        } catch (error) {
+            console.error('Get all payrolls error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch payrolls',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Get complete payroll details - PAYROLL DETAILS SCREEN
+     * GET /api/attendance-payroll/payroll/:id/details
+     */
+    static async getPayrollDetails(req, res) {
+        try {
+            const { id } = req.params;
+
+            const payroll = await attendancePayrollQueries.getPayrollDetailsById(id);
+
+            if (!payroll) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Payroll not found'
+                });
+            }
+
+            // Get attendance breakdown
+            const attendance = await attendancePayrollQueries.getMonthlyAttendance(
+                payroll.service_provider_id,
+                payroll.period_month,
+                payroll.period_year
+            );
+
+            // Get leave details
+            const leaves = await attendancePayrollQueries.getApprovedLeavesForMonth(
+                payroll.service_provider_id,
+                payroll.period_month,
+                payroll.period_year
+            );
+
+            // Format response for UI
+            const response = {
+                header: {
+                    employee_name: payroll.employee_name,
+                    payroll_reference: payroll.payroll_reference
+                },
+                period_info: {
+                    period: payroll.period,
+                    working_days: payroll.working_days,
+                    total_hrs: payroll.total_hrs,
+                    leaves: payroll.leave_days
+                },
+                earnings_deductions: {
+                    gross_salary: `Rs.${payroll.gross_salary}`,
+                    deductions: `-Rs.${payroll.total_deductions}`,
+                    net_salary: `Rs.${payroll.net_salary}`
+                },
+                payment: {
+                    status: payroll.payment_status_display,
+                    mode: payroll.payment_mode || '-',
+                    txn_ref: payroll.payment_reference || '-',
+                    processed_by: payroll.processed_by_name || '-',
+                    processed_at: payroll.payment_date_formatted || '-'
+                },
+                attendance_breakdown: attendance.map(a => ({
+                    date: a.date_formatted,
+                    status: a.status,
+                    check_in: a.check_in_formatted,
+                    check_out: a.check_out_formatted,
+                    hours: a.total_hours || 0,
+                    delay_minutes: a.delay_minutes
+                })),
+                leave_details: leaves.map(l => ({
+                    leave_type: l.leave_type,
+                    start_date: l.start_date_formatted,
+                    end_date: l.end_date_formatted,
+                    total_days: l.total_days,
+                    reason: l.reason
+                }))
+            };
+
+            res.json({
+                success: true,
+                message: 'Payroll details retrieved successfully',
+                data: response
+            });
+
+        } catch (error) {
+            console.error('Get payroll details error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch payroll details',
+                error: error.message
+            });
+        }
+    }
+
+    // ==========================================
+    // EXPORT ENDPOINTS
+    // ==========================================
+
+    /**
+     * Export leaves data
+     * GET /api/attendance-payroll/leaves/export
+     */
+    static async exportLeaves(req, res) {
+        try {
+            const leaves = await attendancePayrollQueries.getExportLeaves();
+
+            res.json({
+                success: true,
+                message: 'Leave data ready for export',
+                data: leaves
+            });
+
+        } catch (error) {
+            console.error('Export leaves error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to export leaves',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Export attendances data
+     * GET /api/attendance-payroll/attendances/export
+     */
+    static async exportAttendances(req, res) {
+        try {
+            const { month, year } = req.query;
+
+            const attendances = await attendancePayrollQueries.getExportAttendances(
+                month ? parseInt(month) : null,
+                year ? parseInt(year) : null
+            );
+
+            res.json({
+                success: true,
+                message: 'Attendance data ready for export',
+                data: attendances
+            });
+
+        } catch (error) {
+            console.error('Export attendances error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to export attendances',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Export payrolls data
+     * GET /api/attendance-payroll/payrolls/export
+     */
+    static async exportPayrolls(req, res) {
+        try {
+            const { month, year } = req.query;
+
+            const payrolls = await attendancePayrollQueries.getExportPayrolls(
+                month ? parseInt(month) : null,
+                year ? parseInt(year) : null
+            );
+
+            res.json({
+                success: true,
+                message: 'Payroll data ready for export',
+                data: payrolls
+            });
+
+        } catch (error) {
+            console.error('Export payrolls error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to export payrolls',
+                error: error.message
+            });
+        }
+    }
 }
 
 module.exports = AttendancePayrollController;

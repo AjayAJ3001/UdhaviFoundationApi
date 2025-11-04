@@ -306,4 +306,110 @@ router.get('/dashboard/:customer_id',
     AttendancePayrollController.getPayrollDashboard
 );
 
+/**
+ * @route   GET /api/attendance-payroll/leaves/all
+ * @desc    Get all leaves with filters - MANAGE LEAVE SCREEN
+ * @access  Private
+ */
+router.get(
+    '/leaves/all',
+    [
+        query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']),
+        query('customer_id').optional().isInt(),
+        query('search').optional().isString()
+    ],
+    AttendancePayrollController.getAllLeaves
+);
+
+/**
+ * @route   GET /api/attendance-payroll/attendances/all
+ * @desc    Get all attendances with filters - MANAGE ATTENDANCE SCREEN
+ * @access  Private
+ */
+router.get(
+    '/attendances/all',
+    [
+        query('status').optional().isIn(['PRESENT', 'ABSENT', 'LATE', 'LEAVE', 'HALF_DAY']),
+        query('customer_id').optional().isInt(),
+        query('date').optional().isDate(),
+        query('month').optional().isInt({ min: 1, max: 12 }),
+        query('year').optional().isInt({ min: 2000, max: 2100 }),
+        query('search').optional().isString()
+    ],
+    AttendancePayrollController.getAllAttendances
+);
+
+/**
+ * @route   GET /api/attendance-payroll/payrolls/all
+ * @desc    Get all payrolls with filters - MANAGE PAYROLL SCREEN
+ * @access  Private
+ */
+router.get(
+    '/payrolls/all',
+    [
+        query('status').optional().isIn(['PAID', 'PENDING', 'ON-HOLD', 'CANCELLED']),
+        query('month').optional().isInt({ min: 1, max: 12 }),
+        query('year').optional().isInt({ min: 2000, max: 2100 }),
+        query('customer_id').optional().isInt(),
+        query('search').optional().isString()
+    ],
+    AttendancePayrollController.getAllPayrolls
+);
+
+/**
+ * @route   GET /api/attendance-payroll/payroll/:id/details
+ * @desc    Get complete payroll details - PAYROLL DETAILS SCREEN
+ * @access  Private
+ */
+router.get(
+    '/payroll/:id/details',
+    [
+        param('id').isInt()
+    ],
+    AttendancePayrollController.getPayrollDetails
+);
+
+// ==========================================
+// EXPORT ROUTES
+// ==========================================
+
+/**
+ * @route   GET /api/attendance-payroll/leaves/export
+ * @desc    Export all leaves data
+ * @access  Private
+ */
+router.get(
+    '/leaves/export',
+    AttendancePayrollController.exportLeaves
+);
+
+/**
+ * @route   GET /api/attendance-payroll/attendances/export
+ * @desc    Export all attendances data
+ * @access  Private
+ */
+router.get(
+    '/attendances/export',
+    [
+        query('month').optional().isInt({ min: 1, max: 12 }),
+        query('year').optional().isInt({ min: 2000, max: 2100 })
+    ],
+    AttendancePayrollController.exportAttendances
+);
+
+/**
+ * @route   GET /api/attendance-payroll/payrolls/export
+ * @desc    Export all payrolls data
+ * @access  Private
+ */
+router.get(
+    '/payrolls/export',
+    [
+        query('month').optional().isInt({ min: 1, max: 12 }),
+        query('year').optional().isInt({ min: 2000, max: 2100 })
+    ],
+    AttendancePayrollController.exportPayrolls
+);
+
+
 module.exports = router;
