@@ -1090,48 +1090,117 @@ class AttendancePayrollController {
      * Get all payrolls with filters - MANAGE PAYROLL SCREEN
      * GET /api/attendance-payroll/payrolls/all
      */
-    static async getAllPayrolls(req, res) {
-        try {
-            const { 
-                status, 
-                month, 
-                year, 
-                customer_id, 
-                search 
-            } = req.query;
+    // static async getAllPayrolls(req, res) {
+    //     try {
+    //         const { 
+    //             status, 
+    //             month, 
+    //             year, 
+    //             customer_id, 
+    //             search 
+    //         } = req.query;
 
-            const filters = {
-                status: status || null,
-                month: month ? parseInt(month) : null,
-                year: year ? parseInt(year) : null,
-                customer_id: customer_id ? parseInt(customer_id) : null,
-                search: search || null
-            };
+    //         const filters = {
+    //             status: status || null,
+    //             month: month ? parseInt(month) : null,
+    //             year: year ? parseInt(year) : null,
+    //             customer_id: customer_id ? parseInt(customer_id) : null,
+    //             search: search || null
+    //         };
 
-            const payrolls = await attendancePayrollQueries.getAllPayrollsWithFilters(filters);
-            const summary = await attendancePayrollQueries.getPayrollsSummary(
-                filters.month, 
-                filters.year
-            );
+    //         const payrolls = await attendancePayrollQueries.getAllPayrollsWithFilters(filters);
+    //         const summary = await attendancePayrollQueries.getPayrollsSummary(
+    //             filters.month, 
+    //             filters.year
+    //         );
 
-            res.json({
-                success: true,
-                message: 'Payrolls retrieved successfully',
-                data: {
-                    payrolls,
-                    summary
-                }
-            });
+    //         res.json({
+    //             success: true,
+    //             message: 'Payrolls retrieved successfully',
+    //             data: {
+    //                 payrolls,
+    //                 summary,
+    //                 total_count: payrolls.length
+    //             }
+    //         });
 
-        } catch (error) {
-            console.error('Get all payrolls error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch payrolls',
-                error: error.message
-            });
-        }
+    //     } catch (error) {
+    //         console.error('Get all payrolls error:', error);
+    //         res.status(500).json({
+    //             success: false,
+    //             message: 'Failed to fetch payrolls',
+    //             error: error.message
+    //         });
+    //     }
+    // }
+static async getAllPayrolls(req, res) {
+    try {
+        console.log('\n========================================');
+        console.log('🔍 getAllPayrolls CALLED');
+        console.log('Request URL:', req.url);
+        console.log('Request query:', req.query);
+        console.log('========================================');
+        
+        const filters = {
+            status: req.query.status,
+            month: req.query.month,
+            year: req.query.year,
+            customer_id: req.query.customer_id,
+            search: req.query.search
+        };
+
+        console.log('📋 Filters:', JSON.stringify(filters, null, 2));
+        console.log('Calling getAllPayrollsWithFilters...');
+
+        const payrolls = await attendancePayrollQueries.getAllPayrollsWithFilters(filters);
+        
+        console.log('========================================');
+        console.log('📊 PAYROLLS RESULT:');
+        console.log('Type:', typeof payrolls);
+        console.log('Is Array:', Array.isArray(payrolls));
+        console.log('Length:', payrolls ? payrolls.length : 'NULL/UNDEFINED');
+        console.log('First record:', payrolls && payrolls[0] ? payrolls[0] : 'NONE');
+        console.log('========================================');
+
+        console.log('Calling getPayrollsSummary...');
+        const summary = await attendancePayrollQueries.getPayrollsSummary(
+            filters.month, 
+            filters.year
+        );
+        
+        console.log('📊 SUMMARY RESULT:', JSON.stringify(summary, null, 2));
+        console.log('========================================\n');
+
+        const response = {
+            success: true,
+            message: 'Payrolls retrieved successfully',
+            data: {
+                payrolls: payrolls,
+                summary: summary,
+                total_count: payrolls.length
+            }
+        };
+
+        console.log('📤 SENDING RESPONSE:');
+        console.log('Payrolls count in response:', response.data.payrolls.length);
+        console.log('========================================\n');
+
+        res.json(response);
+
+    } catch (error) {
+        console.error('\n========================================');
+        console.error('❌ ERROR in getAllPayrolls:');
+        console.error('Message:', error.message);
+        console.error('Stack:', error.stack);
+        console.error('========================================\n');
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch payrolls',
+            error: error.message
+        });
     }
+}
 
     /**
      * Get complete payroll details - PAYROLL DETAILS SCREEN

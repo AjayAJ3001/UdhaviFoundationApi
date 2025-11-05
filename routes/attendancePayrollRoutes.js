@@ -254,15 +254,15 @@ router.get('/payroll/:payroll_id',
     AttendancePayrollController.getPayrollById
 );
 
-/**
- * @route   GET /api/attendance-payroll/payrolls/:service_provider_id
- * @desc    Get all payrolls for a service provider
- * @access  Private (Service Provider)
- */
-router.get('/payrolls/:service_provider_id',
-    param('service_provider_id').isInt().withMessage('Service provider ID must be an integer'),
-    AttendancePayrollController.getServiceProviderPayrolls
-);
+// /**
+//  * @route   GET /api/attendance-payroll/payrolls/:service_provider_id
+//  * @desc    Get all payrolls for a service provider
+//  * @access  Private (Service Provider)
+//  */
+// router.get('/payrolls/:service_provider_id',
+//     param('service_provider_id').isInt().withMessage('Service provider ID must be an integer'),
+//     AttendancePayrollController.getServiceProviderPayrolls
+// );
 
 /**
  * @route   GET /api/attendance-payroll/customer-payrolls/:customer_id
@@ -339,13 +339,17 @@ router.get(
     AttendancePayrollController.getAllAttendances
 );
 
+// ==========================================
+// MOVE THIS UP (around line 240)
+// ==========================================
+
 /**
  * @route   GET /api/attendance-payroll/payrolls/all
  * @desc    Get all payrolls with filters - MANAGE PAYROLL SCREEN
  * @access  Private
  */
 router.get(
-    '/payrolls/all',
+    '/payrolls/all',  // ⬅️ Specific route MUST come first!
     [
         query('status').optional().isIn(['PAID', 'PENDING', 'ON-HOLD', 'CANCELLED']),
         query('month').optional().isInt({ min: 1, max: 12 }),
@@ -354,6 +358,16 @@ router.get(
         query('search').optional().isString()
     ],
     AttendancePayrollController.getAllPayrolls
+);
+
+/**
+ * @route   GET /api/attendance-payroll/payrolls/:service_provider_id
+ * @desc    Get all payrolls for a service provider
+ * @access  Private (Service Provider)
+ */
+router.get('/payrolls/:service_provider_id',  // ⬅️ Parameterized route comes after
+    param('service_provider_id').isInt().withMessage('Service provider ID must be an integer'),
+    AttendancePayrollController.getServiceProviderPayrolls
 );
 
 /**
