@@ -1,6 +1,8 @@
 // queries/attendancePayrollQueries.js
+//const db = require('../database/connection');
 const db = require('../database/connection');
 
+//const db = require('../config/database');
 // ==========================================
 // SALARY CONFIGURATION QUERIES
 // ==========================================
@@ -980,7 +982,7 @@ async function getAllLeavesWithFilters(filters) {
 
     query += ` ORDER BY l.applied_date DESC`;
 
-    const [rows] = await db.query(query, params);
+    const [rows] = await db.execute(query, params);
     return rows;
 }
 
@@ -988,7 +990,7 @@ async function getAllLeavesWithFilters(filters) {
  * Get leaves summary statistics
  */
 async function getLeavesSummary() {
-    const [rows] = await db.query(`
+    const [rows] = await db.execute(`
         SELECT 
             COUNT(*) AS total,
             SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) AS pending,
@@ -1078,7 +1080,7 @@ async function getAllAttendancesWithFilters(filters) {
 
     query += ` ORDER BY a.attendance_date DESC, a.service_provider_id`;
 
-    const [rows] = await db.query(query, params);
+    const [rows] = await db.execute(query, params);
     return rows;
 }
 
@@ -1104,30 +1106,27 @@ async function getAttendancesSummary(month = null, year = null) {
         params.push(month, year);
     }
 
-    const [rows] = await db.query(query, params);
+    const [rows] = await db.execute(query, params);
     return rows[0];
 }
 
 /**
- * Get all payrolls with filters for Manage Payroll Screen
+ * Get all payrolls - VERIFIED VERSION
  */
 async function getAllPayrollsWithFilters(filters) {
     let query = `
         SELECT 
             p.payroll_id,
-            p.payroll_reference AS payroll_id_display,
+            CONCAT('PR-', p.year, '-', LPAD(p.month, 2, '0'), '-', LPAD(p.payroll_id, 4, '0')) AS payroll_id_display,
             
-            -- Employee Info
             p.service_provider_id,
-            CONCAT('P-', LPAD(p.service_provider_id, 3, '0')) AS employee_code,
-            COALESCE(sp.full_name, 'Unknown') AS employee_name,
+            CONCAT('EMP-', LPAD(p.service_provider_id, 3, '0')) AS employee_code,
+            COALESCE(sp.full_name, 'Unknown Employee') AS employee_name,
             
-            -- Period
-            CONCAT(p.period_year, '-', LPAD(p.period_month, 2, '0')) AS period,
-            p.period_month,
-            p.period_year,
+            CONCAT(p.year, '-', LPAD(p.month, 2, '0')) AS period,
+            p.month AS period_month,
+            p.year AS period_year,
             
-            -- Working Details
             p.total_working_days AS working_days,
             p.present_days,
             p.absent_days,
@@ -1135,141 +1134,115 @@ async function getAllPayrollsWithFilters(filters) {
             p.late_days,
             p.half_days,
             
-            -- Hours
             CONCAT(p.present_days * 8, ' hrs') AS total_hrs,
             
-            -- Salary
-            CONCAT('Rs. ', FORMAT(p.gross_salary, 0)) AS total_display,
-            CONCAT('Rs. ', FORMAT(p.total_deductions, 0)) AS deduction_display,
-            CONCAT('Rs. ', FORMAT(p.net_salary, 0)) AS net_display,
-            p.gross_salary AS total,
-            p.total_deductions AS deduction,
-            p.net_salary AS net,
+            p.base_salary,
+            p.earned_salary,
+            p.pf_deduction,
+            p.other_deductions,
+            (p.pf_deduction + p.other_deductions) AS total_deductions,
+            p.bonuses,
+            p.allowances,
+            p.net_payable,
             
-            -- Status
+            CONCAT('Rs. ', FORMAT(p.base_salary, 0)) AS total_display,
+            CONCAT('Rs. ', FORMAT((p.pf_deduction + p.other_deductions), 0)) AS deduction_display,
+            CONCAT('Rs. ', FORMAT(p.net_payable, 0)) AS net_display,
+            
+            p.base_salary AS total,
+            (p.pf_deduction + p.other_deductions) AS deduction,
+            p.net_payable AS net,
+            
+            p.payment_status,
             CASE 
                 WHEN p.payment_status = 'PENDING' THEN 'PENDING'
                 WHEN p.payment_status = 'PAID' THEN 'PAID'
-                WHEN p.payment_status = 'PROCESSING' THEN 'ON-HOLD'
+                WHEN p.payment_status = 'APPROVED' THEN 'ON-HOLD'
                 WHEN p.payment_status = 'CANCELLED' THEN 'CANCELLED'
                 ELSE p.payment_status
             END AS status,
-            p.payment_status,
             
-            -- Payment Info
-            p.payment_mode,
+            p.payment_method AS payment_mode,
             p.payment_reference,
             DATE_FORMAT(p.payment_date, '%d/%m/%Y') AS payment_date,
-            COALESCE(processor.full_name, NULL) AS processed_by,
+            COALESCE(proc.full_name, NULL) AS processed_by,
             
-            -- Generated Info
             DATE_FORMAT(p.generated_at, '%d/%m/%Y %h:%i %p') AS generated_at
             
         FROM sp_payroll p
         LEFT JOIN account_information sp ON p.service_provider_id = sp.registration_id
-        LEFT JOIN account_information processor ON p.payment_processed_by = processor.registration_id
+        LEFT JOIN account_information proc ON p.paid_by = proc.registration_id
         WHERE 1=1
     `;
 
     const params = [];
 
+    // Add filters
     if (filters.status) {
         if (filters.status === 'PENDING') {
             query += ` AND p.payment_status = 'PENDING'`;
         } else if (filters.status === 'PAID') {
             query += ` AND p.payment_status = 'PAID'`;
         } else if (filters.status === 'ON-HOLD') {
-            query += ` AND p.payment_status = 'PROCESSING'`;
+            query += ` AND p.payment_status = 'APPROVED'`;
+        } else if (filters.status === 'CANCELLED') {
+            query += ` AND p.payment_status = 'CANCELLED'`;
         }
     }
 
     if (filters.month) {
-        query += ` AND p.period_month = ?`;
-        params.push(filters.month);
+        query += ` AND p.month = ?`;
+        params.push(parseInt(filters.month));
     }
 
     if (filters.year) {
-        query += ` AND p.period_year = ?`;
-        params.push(filters.year);
+        query += ` AND p.year = ?`;
+        params.push(parseInt(filters.year));
     }
 
     if (filters.customer_id) {
         query += ` AND p.customer_id = ?`;
-        params.push(filters.customer_id);
+        params.push(parseInt(filters.customer_id));
     }
 
     if (filters.search) {
-        query += ` AND (sp.full_name LIKE ? OR p.payroll_reference LIKE ?)`;
+        query += ` AND (sp.full_name LIKE ? OR CONCAT('PR-', p.year, '-', LPAD(p.month, 2, '0'), '-', LPAD(p.payroll_id, 4, '0')) LIKE ?)`;
         params.push(`%${filters.search}%`, `%${filters.search}%`);
     }
 
-    query += ` ORDER BY p.period_year DESC, p.period_month DESC, p.generated_at DESC`;
+    query += ` ORDER BY p.year DESC, p.month DESC, p.payroll_id DESC`;
 
-    const [rows] = await db.query(query, params);
+    console.log('🔍 Executing query with params:', params);
+    
+    const [rows] = await db.execute(query, params);
+    
+    console.log(`✅ Found ${rows.length} payroll records`);
+    
     return rows;
 }
 
-/**
- * Get payrolls summary statistics
- */
-async function getPayrollsSummary(month = null, year = null) {
-    let query = `
-        SELECT 
-            COUNT(*) AS total,
-            SUM(CASE WHEN payment_status = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
-            SUM(CASE WHEN payment_status = 'PAID' THEN 1 ELSE 0 END) AS paid_count,
-            SUM(CASE WHEN payment_status = 'PROCESSING' THEN 1 ELSE 0 END) AS on_hold_count,
-            SUM(CASE WHEN payment_status = 'PENDING' THEN net_salary ELSE 0 END) AS pending_amount,
-            SUM(CASE WHEN payment_status = 'PAID' THEN net_salary ELSE 0 END) AS paid_amount,
-            SUM(net_salary) AS total_amount
-        FROM sp_payroll
-    `;
-
-    const params = [];
-
-    if (month && year) {
-        query += ` WHERE period_month = ? AND period_year = ?`;
-        params.push(month, year);
-    }
-
-    const [rows] = await db.query(query, params);
-    
-    const summary = rows[0];
-    return {
-        ...summary,
-        pending_amount_display: `Rs. ${(summary.pending_amount || 0).toLocaleString('en-IN')}`,
-        paid_amount_display: `Rs. ${(summary.paid_amount || 0).toLocaleString('en-IN')}`,
-        total_amount_display: `Rs. ${(summary.total_amount || 0).toLocaleString('en-IN')}`
-    };
-}
 
 /**
- * Get complete payroll details by ID for Payroll Details Screen
+ * Get payroll details by ID
  */
 async function getPayrollDetailsById(payroll_id) {
-    const [rows] = await db.query(`
+    const [rows] = await db.execute(`
         SELECT 
             p.payroll_id,
-            p.payroll_reference,
+            CONCAT('PR-', p.year, '-', LPAD(p.month, 2, '0'), '-', LPAD(p.payroll_id, 4, '0')) AS payroll_reference,
             
-            -- Employee Info
             p.service_provider_id,
             COALESCE(sp.full_name, 'Unknown') AS employee_name,
-            COALESCE(sp.email, NULL) AS employee_email,
-            COALESCE(sp.phone_number, NULL) AS employee_phone,
+            COALESCE(sp.email_address, NULL) AS employee_email,
+            COALESCE(sp.mobile_number, NULL) AS employee_phone,
             
-            -- Customer Info
             p.customer_id,
             COALESCE(cust.full_name, 'Unknown') AS customer_name,
             
-            -- Period
-            CONCAT(p.period_year, '-', LPAD(p.period_month, 2, '0')) AS period,
-            p.period_month,
-            p.period_year,
-            DATE_FORMAT(p.period_start_date, '%d/%m/%Y') AS period_start,
-            DATE_FORMAT(p.period_end_date, '%d/%m/%Y') AS period_end,
+            CONCAT(p.year, '-', LPAD(p.month, 2, '0')) AS period,
+            p.month AS period_month,
+            p.year AS period_year,
             
-            -- Working Details
             p.total_working_days AS working_days,
             p.present_days,
             p.absent_days,
@@ -1277,41 +1250,26 @@ async function getPayrollDetailsById(payroll_id) {
             p.late_days,
             p.half_days,
             
-            -- Hours
-            CONCAT(p.present_days * 8, ' hrs') AS total_hrs,
-            
-            -- Earnings & Deductions
-            p.gross_salary,
-            p.per_day_salary,
+            p.base_salary AS gross_salary,
+            p.earned_salary AS per_day_salary,
             p.earned_salary,
             p.pf_deduction,
             p.other_deductions,
-            p.total_deductions,
-            p.net_salary,
+            (p.pf_deduction + p.other_deductions) AS total_deductions,
+            p.bonuses,
+            p.allowances,
+            p.net_payable AS net_salary,
             
-            -- Payment Info
             p.payment_status,
-            CASE 
-                WHEN p.payment_status = 'PAID' THEN 'Paid'
-                WHEN p.payment_status = 'PENDING' THEN 'Pending'
-                WHEN p.payment_status = 'PROCESSING' THEN 'Processing'
-                ELSE 'Cancelled'
-            END AS payment_status_display,
-            
-            p.payment_mode,
+            p.payment_method AS payment_mode,
             p.payment_reference,
             DATE_FORMAT(p.payment_date, '%d-%m-%Y') AS payment_date_formatted,
-            COALESCE(processor.full_name, NULL) AS processed_by_name,
             
-            -- Generated Info
-            DATE_FORMAT(p.generated_at, '%d/%m/%Y %h:%i %p') AS generated_at,
-            COALESCE(creator.full_name, 'System') AS generated_by
+            DATE_FORMAT(p.generated_at, '%d/%m/%Y %h:%i %p') AS generated_at
             
         FROM sp_payroll p
         LEFT JOIN account_information sp ON p.service_provider_id = sp.registration_id
         LEFT JOIN account_information cust ON p.customer_id = cust.registration_id
-        LEFT JOIN account_information processor ON p.payment_processed_by = processor.registration_id
-        LEFT JOIN account_information creator ON p.created_by = creator.registration_id
         WHERE p.payroll_id = ?
     `, [payroll_id]);
 
@@ -1319,10 +1277,53 @@ async function getPayrollDetailsById(payroll_id) {
 }
 
 /**
- * Get approved leaves for a specific month
+ * Get payrolls summary
+ */
+async function getPayrollsSummary(month = null, year = null) {
+    let query = `
+        SELECT 
+            COUNT(*) AS total,
+            SUM(CASE WHEN payment_status = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
+            SUM(CASE WHEN payment_status = 'PAID' THEN 1 ELSE 0 END) AS paid_count,
+            SUM(CASE WHEN payment_status = 'APPROVED' THEN 1 ELSE 0 END) AS on_hold_count,
+            SUM(CASE WHEN payment_status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled_count,
+            COALESCE(SUM(CASE WHEN payment_status = 'PENDING' THEN net_payable ELSE 0 END), 0) AS pending_amount,
+            COALESCE(SUM(CASE WHEN payment_status = 'PAID' THEN net_payable ELSE 0 END), 0) AS paid_amount,
+            COALESCE(SUM(net_payable), 0) AS total_amount
+        FROM sp_payroll
+        WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (month && year) {
+        query += ` AND month = ? AND year = ?`;
+        params.push(parseInt(month), parseInt(year));
+    }
+
+    const [rows] = await db.execute(query, params);
+    
+    const summary = rows[0];
+    return {
+        total: summary.total || 0,
+        pending_count: summary.pending_count || 0,
+        paid_count: summary.paid_count || 0,
+        on_hold_count: summary.on_hold_count || 0,
+        cancelled_count: summary.cancelled_count || 0,
+        pending_amount: summary.pending_amount || 0,
+        paid_amount: summary.paid_amount || 0,
+        total_amount: summary.total_amount || 0,
+        pending_amount_display: `Rs. ${(summary.pending_amount || 0).toLocaleString('en-IN')}`,
+        paid_amount_display: `Rs. ${(summary.paid_amount || 0).toLocaleString('en-IN')}`,
+        total_amount_display: `Rs. ${(summary.total_amount || 0).toLocaleString('en-IN')}`
+    };
+}
+
+/**
+ * Get approved leaves for month
  */
 async function getApprovedLeavesForMonth(service_provider_id, month, year) {
-    const [rows] = await db.query(`
+    const [rows] = await db.execute(`
         SELECT 
             leave_type,
             DATE_FORMAT(start_date, '%d/%m/%Y') AS start_date_formatted,
@@ -1339,6 +1340,52 @@ async function getApprovedLeavesForMonth(service_provider_id, month, year) {
     return rows;
 }
 
+/**
+ * Export payrolls
+ */
+async function getExportPayrolls(month = null, year = null) {
+    let query = `
+        SELECT 
+            CONCAT('PR-', p.year, '-', LPAD(p.month, 2, '0'), '-', LPAD(p.payroll_id, 4, '0')) AS Payroll_ID,
+            CONCAT('EMP-', LPAD(p.service_provider_id, 3, '0')) AS Employee_Code,
+            COALESCE(sp.full_name, 'Unknown') AS Employee_Name,
+            CONCAT(p.year, '-', LPAD(p.month, 2, '0')) AS Period,
+            p.total_working_days AS Working_Days,
+            p.present_days AS Present_Days,
+            p.absent_days AS Absent_Days,
+            p.leave_days AS Leave_Days,
+            p.late_days AS Late_Days,
+            p.half_days AS Half_Days,
+            p.base_salary AS Base_Salary,
+            p.earned_salary AS Earned_Salary,
+            p.pf_deduction AS PF_Deduction,
+            p.other_deductions AS Other_Deductions,
+            (p.pf_deduction + p.other_deductions) AS Total_Deductions,
+            p.bonuses AS Bonuses,
+            p.allowances AS Allowances,
+            p.net_payable AS Net_Salary,
+            p.payment_status AS Status,
+            p.payment_method AS Payment_Mode,
+            DATE_FORMAT(p.payment_date, '%d/%m/%Y') AS Payment_Date,
+            p.payment_reference AS Payment_Reference
+        FROM sp_payroll p
+        LEFT JOIN account_information sp ON p.service_provider_id = sp.registration_id
+        WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (month && year) {
+        query += ` AND p.month = ? AND p.year = ?`;
+        params.push(parseInt(month), parseInt(year));
+    }
+
+    query += ` ORDER BY p.year DESC, p.month DESC`;
+
+    const [rows] = await db.execute(query, params);
+    return rows;
+}
+
 // ==========================================
 // EXPORT QUERIES
 // ==========================================
@@ -1347,7 +1394,7 @@ async function getApprovedLeavesForMonth(service_provider_id, month, year) {
  * Get all leaves data for export
  */
 async function getExportLeaves() {
-    const [rows] = await db.query(`
+    const [rows] = await db.execute(`
         SELECT 
             CONCAT('L-', LPAD(l.leave_id, 4, '0')) AS Leave_ID,
             COALESCE(cust.full_name, 'Unknown') AS Customer_Name,
@@ -1399,47 +1446,47 @@ async function getExportAttendances(month = null, year = null) {
 
     query += ` ORDER BY a.attendance_date DESC`;
 
-    const [rows] = await db.query(query, params);
+    const [rows] = await db.execute(query, params);
     return rows;
 }
 
 /**
  * Get all payrolls data for export
  */
-async function getExportPayrolls(month = null, year = null) {
-    let query = `
-        SELECT 
-            p.payroll_reference AS Payroll_ID,
-            CONCAT('P-', LPAD(p.service_provider_id, 3, '0')) AS Employee_Code,
-            COALESCE(sp.full_name, 'Unknown') AS Employee_Name,
-            CONCAT(p.period_year, '-', LPAD(p.period_month, 2, '0')) AS Period,
-            p.total_working_days AS Working_Days,
-            p.present_days AS Present_Days,
-            p.absent_days AS Absent_Days,
-            p.leave_days AS Leave_Days,
-            p.gross_salary AS Gross_Salary,
-            p.total_deductions AS Deductions,
-            p.net_salary AS Net_Salary,
-            p.payment_status AS Status,
-            p.payment_mode AS Payment_Mode,
-            DATE_FORMAT(p.payment_date, '%d/%m/%Y') AS Payment_Date
-        FROM sp_payroll p
-        LEFT JOIN account_information sp ON p.service_provider_id = sp.registration_id
-        WHERE 1=1
-    `;
+// async function getExportPayrolls(month = null, year = null) {
+//     let query = `
+//         SELECT 
+//             p.payroll_reference AS Payroll_ID,
+//             CONCAT('P-', LPAD(p.service_provider_id, 3, '0')) AS Employee_Code,
+//             COALESCE(sp.full_name, 'Unknown') AS Employee_Name,
+//             CONCAT(p.period_year, '-', LPAD(p.period_month, 2, '0')) AS Period,
+//             p.total_working_days AS Working_Days,
+//             p.present_days AS Present_Days,
+//             p.absent_days AS Absent_Days,
+//             p.leave_days AS Leave_Days,
+//             p.gross_salary AS Gross_Salary,
+//             p.total_deductions AS Deductions,
+//             p.net_salary AS Net_Salary,
+//             p.payment_status AS Status,
+//             p.payment_mode AS Payment_Mode,
+//             DATE_FORMAT(p.payment_date, '%d/%m/%Y') AS Payment_Date
+//         FROM sp_payroll p
+//         LEFT JOIN account_information sp ON p.service_provider_id = sp.registration_id
+//         WHERE 1=1
+//     `;
 
-    const params = [];
+//     const params = [];
 
-    if (month && year) {
-        query += ` AND p.period_month = ? AND p.period_year = ?`;
-        params.push(month, year);
-    }
+//     if (month && year) {
+//         query += ` AND p.period_month = ? AND p.period_year = ?`;
+//         params.push(month, year);
+//     }
 
-    query += ` ORDER BY p.period_year DESC, p.period_month DESC`;
+//     query += ` ORDER BY p.period_year DESC, p.period_month DESC`;
 
-    const [rows] = await db.query(query, params);
-    return rows;
-}
+//     const [rows] = await db.execute(query, params);
+//     return rows;
+// }
 
 // Export all functions
 module.exports = {
