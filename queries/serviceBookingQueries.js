@@ -1154,43 +1154,46 @@ const getAssignedDetailsByProviderId = async (provider_id) => {
     try {
         const query = `
             SELECT 
-    sb.booking_id,
-    sb.customer_id,
-    sb.service_id,
-    sb.assigned_provider_id,
-    sb.interview_status,
-    sb.interview_date,
-    sb.interview_time,
-    CONCAT(sb.service_start_time, ' - ', sb.service_end_time) AS shift_time,
-    sb.service_address,
-    sb.service_start_date,
-    sb.service_end_date,
-    sb.base_cost,
-    sb.tax_amount,
-    sb.discount_amount,
-    sb.total_amount,
-    sb.booking_status,
-    sb.payment_status,
-    sb.created_at,
-    sb.updated_at,
+                sb.booking_id,
+                sb.customer_id,
+                sb.service_id,
+                sb.assigned_provider_id,
+                sb.assigned_crm_id,
+                sb.interview_status,
+                sb.interview_date,
+                sb.interview_time,
+                sb.service_start_time,
+                sb.service_end_time,
+                CONCAT(sb.service_start_time, ' - ', sb.service_end_time) AS shift_time,
+                sb.service_address,
+                sb.base_cost,
+                sb.tax_amount,
+                sb.discount_amount,
+                sb.booking_charges,
+                sb.estimated_cost,
+                sb.pf_option,
+                sb.booking_status,
+                sb.payment_status,
+                sb.payment_method,
+                sb.created_at,
+                sb.updated_at,
 
-    ai.full_name AS customer_name,
-    ai.mobile_number AS customer_mobile,
-    ai.email_address AS customer_email,
+                ai.full_name AS customer_name,
+                ai.mobile_number AS customer_mobile,
+                ai.email_address AS customer_email,
 
-    cu.name AS assigned_crm_name,
-    cu.phone AS crm_mobile
+                cu.name AS assigned_crm_name,
+                cu.phone AS crm_mobile
 
-FROM service_bookings sb
-LEFT JOIN account_information ai 
-    ON sb.customer_id = ai.registration_id
-LEFT JOIN crm_users cu 
-    ON sb.assigned_crm_id = cu.id
-WHERE 
-    sb.assigned_provider_id = ?
-    AND sb.interview_status = 'assigned'
-ORDER BY sb.interview_date DESC;
-
+            FROM service_bookings sb
+            LEFT JOIN account_information ai 
+                ON sb.customer_id = ai.registration_id
+            LEFT JOIN crm_users cu 
+                ON sb.assigned_crm_id = cu.id
+            WHERE 
+                sb.assigned_provider_id = ?
+                AND sb.interview_status = 'assigned'
+            ORDER BY sb.interview_date DESC
         `;
 
         const [rows] = await db.execute(query, [provider_id]);
@@ -1201,7 +1204,6 @@ ORDER BY sb.interview_date DESC;
         throw error;
     }
 };
-
 
 
 module.exports = {

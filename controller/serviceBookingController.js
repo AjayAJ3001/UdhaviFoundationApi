@@ -4691,7 +4691,7 @@ static async getAdminBookingById(req, res) {
         }
     }
   // ✅ Assigned Interview Details for Provider
-    static async getAssignedDetailsByProvider(req, res) {
+static async getAssignedDetailsByProvider(req, res) {
         try {
             const { provider_id } = req.params;
 
@@ -4709,35 +4709,44 @@ static async getAdminBookingById(req, res) {
                     success: true,
                     message: "No assigned interviews yet",
                     provider_id,
+                    interview_status: "none",
                     assigned_details: []
                 });
             }
 
             const assignedDetails = results.map(data => {
                 const final_cost =
-                    Number(data.base_cost || 0) +
-                    Number(data.tax_amount || 0) -
-                    Number(data.discount_amount || 0);
+                    (Number(data.base_cost || 0)) +
+                    (Number(data.tax_amount || 0)) -
+                    (Number(data.discount_amount || 0));
 
                 return {
                     booking_id: data.booking_id,
                     customer_name: data.customer_name,
                     customer_mobile: data.customer_mobile,
+                    interview_status: data.interview_status,
+
                     date_time: `${data.interview_date} ${data.interview_time}`,
-                    shift_time: data.shift_time || "N/A",
+                    shift_time: data.shift_time,
+
                     crm_user: data.assigned_crm_name || "N/A",
                     crm_mobile: data.crm_mobile || "N/A",
+
                     base_cost: data.base_cost,
                     tax_amount: data.tax_amount,
                     discount_amount: data.discount_amount,
+                    booking_charges: data.booking_charges,
+                    estimated_cost: data.estimated_cost,
+                    pf_option: data.pf_option,
+
                     final_cost
                 };
             });
 
             return res.status(200).json({
                 success: true,
-                message: "Assigned interview details fetched successfully",
                 provider_id,
+                message: "Assigned interview details fetched successfully",
                 assigned_details: assignedDetails
             });
 
