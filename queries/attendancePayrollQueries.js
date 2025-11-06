@@ -924,6 +924,92 @@ const getAttendanceHistory = async (attendance_id) => {
     }
 };
 
+// /**
+//  * Get all leaves with filters for Manage Leave Screen
+//  */
+// async function getAllLeavesWithFilters(filters) {
+//     let query = `
+//        SELECT 
+//     l.leave_id,
+//     l.service_provider_id,
+//     l.customer_id,
+    
+//     -- Customer name
+//     c.full_name AS customer_name,
+    
+//     -- Employee/Service Provider name - FIXED JOIN
+//     COALESCE(e.full_name, 'Unknown') AS employee_name,
+    
+//     -- Leave details
+//     l.leave_type,
+//     DATE_FORMAT(l.start_date, '%d/%m/%Y') AS start_date,
+//     DATE_FORMAT(l.end_date, '%d/%m/%Y') AS end_date,
+//     DATE_FORMAT(l.applied_date, '%d/%m/%Y') AS applied_on,
+//     l.total_days,
+//     l.reason,
+//     l.is_paid_leave AS is_paid,
+//     l.status,
+    
+//     -- Approval details
+//     l.approved_by,
+//     approver.full_name AS approved_by_name,
+//     DATE_FORMAT(l.approved_date, '%d/%m/%Y %h:%i %p') AS approved_date,
+//     l.rejection_reason
+    
+// FROM sp_leave l
+
+// -- Join for SERVICE PROVIDER (Employee) - registration_id
+// LEFT JOIN account_information e 
+//     ON l.service_provider_id = e.registration_id
+
+// -- Join for CUSTOMER - registration_id
+// LEFT JOIN account_information c 
+//     ON l.customer_id = c.registration_id
+
+// -- Join for APPROVER - registration_id
+// LEFT JOIN account_information approver 
+//     ON l.approved_by = approver.registration_id
+
+// WHERE 1=1
+//     -- Date filters
+//     AND (@appliedFrom IS NULL OR l.applied_date >= @appliedFrom)
+//     AND (@appliedTo IS NULL OR l.applied_date <= @appliedTo)
+//     AND (@leaveFrom IS NULL OR l.end_date >= @leaveFrom)
+//     AND (@leaveTo IS NULL OR l.start_date <= @leaveTo)
+    
+//     -- Other filters
+//     AND (@status IS NULL OR l.status = @status)
+//     AND (@customerId IS NULL OR l.customer_id = @customerId)
+//     AND (@search IS NULL OR 
+//          c.full_name LIKE CONCAT('%', @search, '%') OR 
+//          e.full_name LIKE CONCAT('%', @search, '%'))
+
+// ORDER BY l.applied_date DESC;
+//     `;
+
+//     const params = [];
+
+//     if (filters.status) {
+//         query += ` AND l.status = ?`;
+//         params.push(filters.status);
+//     }
+
+//     if (filters.customer_id) {
+//         query += ` AND l.customer_id = ?`;
+//         params.push(filters.customer_id);
+//     }
+
+//     if (filters.search) {
+//         query += ` AND (cust.full_name LIKE ? OR sp.full_name LIKE ?)`;
+//         params.push(`%${filters.search}%`, `%${filters.search}%`);
+//     }
+
+//     query += ` ORDER BY l.applied_date DESC`;
+
+//     const [rows] = await db.execute(query, params);
+//     return rows;
+// }
+
 /**
  * Get all leaves with filters for Manage Leave Screen
  */
@@ -933,55 +1019,73 @@ async function getAllLeavesWithFilters(filters) {
             l.leave_id,
             l.service_provider_id,
             l.customer_id,
-            
-            -- Customer/Service Provider Info
-            COALESCE(cust.full_name, 'Unknown') AS customer_name,
-            COALESCE(sp.full_name, 'Unknown') AS employee_name,
-            
-            -- Leave Details
+            c.full_name AS customer_name,
+            COALESCE(e.full_name, 'Unknown') AS employee_name,
             l.leave_type,
             DATE_FORMAT(l.from_date, '%d/%m/%Y') AS start_date,
             DATE_FORMAT(l.to_date, '%d/%m/%Y') AS end_date,
             DATE_FORMAT(l.applied_date, '%d/%m/%Y') AS applied_on,
             l.total_days,
             l.reason,
-          l.is_paid_leave AS is_paid,  
-            
-            -- Status
+            l.is_paid_leave AS is_paid,
             l.status,
-            
-            -- Approval Info
             l.approved_by,
-            COALESCE(approver.full_name, NULL) AS approved_by_name,
+            approver.full_name AS approved_by_name,
             DATE_FORMAT(l.approved_date, '%d/%m/%Y %h:%i %p') AS approved_date,
             l.rejection_reason
-            
         FROM sp_leave l
-        LEFT JOIN account_information cust ON l.customer_id = cust.registration_id
-        LEFT JOIN account_information sp ON l.service_provider_id = sp.registration_id
-        LEFT JOIN account_information approver ON l.approved_by = approver.registration_id
+        LEFT JOIN account_information e 
+            ON l.service_provider_id = e.account_id
+        LEFT JOIN account_information c 
+            ON l.customer_id = c.account_id
+        LEFT JOIN account_information approver 
+            ON l.approved_by = approver.account_id
         WHERE 1=1
     `;
-
+    
     const params = [];
-
+    
+    // Date filters
+    if (filters.applied_from) {
+        query += ` AND l.applied_date >= ?`;
+        params.push(filters.applied_from);
+    }
+    
+    if (filters.applied_to) {
+        query += ` AND l.applied_date <= ?`;
+        params.push(filters.applied_to);
+    }
+    
+    if (filters.leave_from) {
+        query += ` AND l.to_date >= ?`;
+        params.push(filters.leave_from);
+    }
+    
+    if (filters.leave_to) {
+        query += ` AND l.from_date <= ?`;
+        params.push(filters.leave_to);
+    }
+    
+    // Status filter
     if (filters.status) {
         query += ` AND l.status = ?`;
         params.push(filters.status);
     }
-
+    
+    // Customer filter
     if (filters.customer_id) {
         query += ` AND l.customer_id = ?`;
         params.push(filters.customer_id);
     }
-
+    
+    // Search filter
     if (filters.search) {
-        query += ` AND (cust.full_name LIKE ? OR sp.full_name LIKE ?)`;
+        query += ` AND (c.full_name LIKE ? OR e.full_name LIKE ?)`;
         params.push(`%${filters.search}%`, `%${filters.search}%`);
     }
-
+    
     query += ` ORDER BY l.applied_date DESC`;
-
+    
     const [rows] = await db.execute(query, params);
     return rows;
 }
