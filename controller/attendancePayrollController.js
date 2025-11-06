@@ -1375,6 +1375,125 @@ static async getAllPayrolls(req, res) {
             });
         }
     }
+
+   // const payrollQueries = require('./payrollQueries'); // Adjust path as needed
+
+/**
+ * GET ALL PAYROLL DATA
+ * Endpoint: GET /api/attendance-payroll/payroll/1/details
+ * Returns ALL payroll records with complete information
+ */
+
+ /**
+     * GET ALL PAYROLL DATA
+     * Endpoint: GET /api/attendance-payroll/payroll/1/details
+     * Returns ALL payroll records with complete information
+     */
+    static async getAllPayrollData(req, res) {
+        try {
+            // Get all payroll data
+            const allPayrolls = await payrollQueries.getAllPayrollData();
+
+            // Calculate summary statistics
+            const totalRecords = allPayrolls.length;
+            const pendingCount = allPayrolls.filter(p => p.payment_status === 'PENDING').length;
+            const paidCount = allPayrolls.filter(p => p.payment_status === 'PAID').length;
+            const totalAmount = allPayrolls.reduce((sum, p) => sum + parseFloat(p.net_salary || 0), 0);
+            const pendingAmount = allPayrolls
+                .filter(p => p.payment_status === 'PENDING')
+                .reduce((sum, p) => sum + parseFloat(p.net_salary || 0), 0);
+
+            res.status(200).json({
+                success: true,
+                message: 'All payroll data retrieved successfully',
+                data: {
+                    payrolls: allPayrolls,
+                    summary: {
+                        total_records: totalRecords,
+                        pending_count: pendingCount,
+                        paid_count: paidCount,
+                        total_amount: totalAmount,
+                        total_amount_display: `₹ ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        pending_amount: pendingAmount,
+                        pending_amount_display: `₹ ${pendingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    }
+                },
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error('Error in getAllPayrollData:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve payroll data',
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+
+
+       /**
+     * GET ALL PAYROLL DATA
+     * Endpoint: GET /api/attendance-payroll/payroll/all/details
+     */
+    static async getAllPayrollData(req, res) {
+        try {
+            console.log('📊 Fetching ALL payroll data...');
+            
+            // Get all payroll data
+            const allPayrolls = await attendancePayrollQueries.getAllPayrollData();
+            
+            console.log(`✅ Retrieved ${allPayrolls.length} records`);
+
+            // Calculate summary
+            const totalRecords = allPayrolls.length;
+            const pendingCount = allPayrolls.filter(p => p.payment_status === 'PENDING').length;
+            const paidCount = allPayrolls.filter(p => p.payment_status === 'PAID').length;
+            const totalAmount = allPayrolls.reduce((sum, p) => sum + parseFloat(p.net_salary || 0), 0);
+            const pendingAmount = allPayrolls
+                .filter(p => p.payment_status === 'PENDING')
+                .reduce((sum, p) => sum + parseFloat(p.net_salary || 0), 0);
+
+            res.status(200).json({
+                success: true,
+                message: 'All payroll data retrieved successfully',
+                data: {
+                    payrolls: allPayrolls,  // ALL RECORDS
+                    summary: {
+                        total_records: totalRecords,
+                        pending_count: pendingCount,
+                        paid_count: paidCount,
+                        total_amount: totalAmount,
+                        total_amount_display: `₹ ${totalAmount.toLocaleString('en-IN', { 
+                            minimumFractionDigits: 2, 
+                            maximumFractionDigits: 2 
+                        })}`,
+                        pending_amount: pendingAmount,
+                        pending_amount_display: `₹ ${pendingAmount.toLocaleString('en-IN', { 
+                            minimumFractionDigits: 2, 
+                            maximumFractionDigits: 2 
+                        })}`
+                    }
+                },
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error('❌ Error in getAllPayrollData:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve payroll data',
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+
+
 }
+
+
+
 
 module.exports = AttendancePayrollController;

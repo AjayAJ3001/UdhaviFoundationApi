@@ -361,6 +361,15 @@ router.get(
 );
 
 /**
+ * @route   GET /api/attendance-payroll/payroll/all/details
+ * @desc    Get ALL payroll records with complete details from sp_payroll table
+ * @access  Private
+ * @returns All payroll records with employee, customer, salary, payment details + summary
+ */
+router.get('/payroll/all/details', AttendancePayrollController.getAllPayrollData);
+
+
+/**
  * @route   GET /api/attendance-payroll/payrolls/:service_provider_id
  * @desc    Get all payrolls for a service provider
  * @access  Private (Service Provider)
@@ -424,6 +433,27 @@ router.get(
     ],
     AttendancePayrollController.exportPayrolls
 );
+
+/**
+ * @route   GET /api/attendance-payroll/payroll/1/details
+ * @desc    Get ALL payroll records with complete details
+ * @access  Private
+ */
+// ✅ CORRECT - Use AttendancePayrollController which you already have
+router.get('/payroll/1/details', AttendancePayrollController.getAllPayrollData);
+
+
+
+/**
+ * Health check endpoint
+ */
+router.get('/health', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'Payroll API is running',
+        timestamp: new Date().toISOString()
+    });
+});
 
 
 module.exports = router;

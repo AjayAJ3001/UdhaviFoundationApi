@@ -1488,8 +1488,184 @@ async function getExportAttendances(month = null, year = null) {
 //     return rows;
 // }
 
+/**
+ * Get ALL payroll records with complete details
+ */
+async function getAllPayrollData() {
+    const query = `
+        SELECT 
+            p.payroll_id,
+            p.payroll_reference,
+            
+            -- Employee/Service Provider Info
+            p.service_provider_id,
+            COALESCE(sp.full_name, 'Unknown') AS employee_name,
+            COALESCE(sp.email, NULL) AS employee_email,
+            COALESCE(sp.phone_number, NULL) AS employee_phone,
+            
+            -- Customer Info
+            p.customer_id,
+            COALESCE(cust.full_name, 'Unknown') AS customer_name,
+            COALESCE(cust.email, NULL) AS customer_email,
+            
+            -- Booking Info
+            p.booking_id,
+            
+            -- Period Details
+            p.period_month,
+            p.period_year,
+            CONCAT(p.period_year, '-', LPAD(p.period_month, 2, '0')) AS period,
+            DATE_FORMAT(p.period_start_date, '%d/%m/%Y') AS period_start_date,
+            DATE_FORMAT(p.period_end_date, '%d/%m/%Y') AS period_end_date,
+            
+            -- Working Days Details
+            p.total_working_days,
+            p.present_days,
+            p.absent_days,
+            p.leave_days,
+            p.late_days,
+            p.half_days,
+            
+            -- Salary Details
+            p.gross_salary,
+            CONCAT('₹ ', FORMAT(p.gross_salary, 2)) AS gross_salary_display,
+            p.per_day_salary,
+            CONCAT('₹ ', FORMAT(p.per_day_salary, 2)) AS per_day_salary_display,
+            p.earned_salary,
+            CONCAT('₹ ', FORMAT(p.earned_salary, 2)) AS earned_salary_display,
+            
+            -- Deductions
+            p.pf_deduction,
+            CONCAT('₹ ', FORMAT(p.pf_deduction, 2)) AS pf_deduction_display,
+            p.pf_percentage,
+            p.other_deductions,
+            CONCAT('₹ ', FORMAT(p.other_deductions, 2)) AS other_deductions_display,
+            p.total_deductions,
+            CONCAT('₹ ', FORMAT(p.total_deductions, 2)) AS total_deductions_display,
+            
+            -- Net Salary
+            p.net_salary,
+            CONCAT('₹ ', FORMAT(p.net_salary, 2)) AS net_salary_display,
+            
+            -- Payment Info
+            p.payment_status,
+            CASE 
+                WHEN p.payment_status = 'PAID' THEN 'Paid'
+                WHEN p.payment_status = 'PENDING' THEN 'Pending'
+                WHEN p.payment_status = 'PROCESSING' THEN 'Processing'
+                WHEN p.payment_status = 'CANCELLED' THEN 'Cancelled'
+                ELSE 'Unknown'
+            END AS payment_status_display,
+            p.payment_mode,
+            p.payment_reference,
+            DATE_FORMAT(p.payment_date, '%d/%m/%Y') AS payment_date,
+            
+            -- Timestamps
+            DATE_FORMAT(p.generated_at, '%d/%m/%Y %h:%i %p') AS generated_at,
+            DATE_FORMAT(p.created_at, '%d/%m/%Y %h:%i %p') AS created_at,
+            COALESCE(creator.full_name, 'System') AS created_by_name
+            
+        FROM sp_payroll p
+        LEFT JOIN account_information sp ON p.service_provider_id = sp.registration_id
+        LEFT JOIN account_information cust ON p.customer_id = cust.registration_id
+        LEFT JOIN account_information creator ON p.created_by = creator.registration_id
+        ORDER BY p.period_year DESC, p.period_month DESC, p.payroll_id DESC
+    `;
+
+    const [rows] = await db.query(query);
+    return rows;
+}
+
+/**
+ * Get ALL payroll records with complete details
+ * Returns every record from sp_payroll table with joins
+ */
+async function getAllPayrollData() {
+    const query = `
+        SELECT 
+            -- Payroll IDs
+            p.payroll_id,
+            CONCAT('PR-', p.year, '-', LPAD(p.month, 2, '0'), '-', LPAD(p.payroll_id, 4, '0')) AS payroll_reference,
+            
+            -- IDs for joining
+            p.service_provider_id,
+            p.customer_id,
+            p.booking_id,
+            
+            -- Employee & Customer Names (safe - full_name exists in all tables)
+            COALESCE(sp.full_name, 'Unknown') AS employee_name,
+            COALESCE(cust.full_name, 'Unknown') AS customer_name,
+            
+            -- Period Info
+            p.month AS period_month,
+            p.year AS period_year,
+            CONCAT(p.year, '-', LPAD(p.month, 2, '0')) AS period,
+            
+            -- Working Days Breakdown
+            p.total_working_days,
+            p.present_days,
+            p.absent_days,
+            p.leave_days,
+            COALESCE(p.late_days, 0) AS late_days,
+            COALESCE(p.half_days, 0) AS half_days,
+            
+            -- Salary Details (Raw Numbers)
+            p.base_salary AS gross_salary,
+            p.earned_salary,
+            
+            -- Formatted Display
+            CONCAT('₹ ', FORMAT(p.base_salary, 2)) AS gross_salary_display,
+            CONCAT('₹ ', FORMAT(p.earned_salary, 2)) AS earned_salary_display,
+            
+            -- Deductions
+            COALESCE(p.pf_deduction, 0) AS pf_deduction,
+            COALESCE(p.other_deductions, 0) AS other_deductions,
+            (COALESCE(p.pf_deduction, 0) + COALESCE(p.other_deductions, 0)) AS total_deductions,
+            
+            -- Formatted Deductions
+            CONCAT('₹ ', FORMAT(COALESCE(p.pf_deduction, 0), 2)) AS pf_deduction_display,
+            CONCAT('₹ ', FORMAT(COALESCE(p.other_deductions, 0), 2)) AS other_deductions_display,
+            CONCAT('₹ ', FORMAT((COALESCE(p.pf_deduction, 0) + COALESCE(p.other_deductions, 0)), 2)) AS total_deductions_display,
+            
+            -- Net Salary (Final Amount)
+            p.net_payable AS net_salary,
+            CONCAT('₹ ', FORMAT(p.net_payable, 2)) AS net_salary_display,
+            
+            -- Payment Status
+            p.payment_status,
+            CASE 
+                WHEN p.payment_status = 'PAID' THEN 'Paid'
+                WHEN p.payment_status = 'PENDING' THEN 'Pending'
+                WHEN p.payment_status = 'PROCESSING' THEN 'Processing'
+                WHEN p.payment_status = 'APPROVED' THEN 'On-Hold'
+                WHEN p.payment_status = 'CANCELLED' THEN 'Cancelled'
+                ELSE 'Unknown'
+            END AS payment_status_display,
+            
+            -- Payment Information
+            p.payment_method AS payment_mode,
+            p.payment_reference,
+            DATE_FORMAT(p.payment_date, '%d/%m/%Y') AS payment_date,
+            
+            -- Timestamps
+            DATE_FORMAT(p.generated_at, '%d/%m/%Y %h:%i %p') AS generated_at,
+            DATE_FORMAT(p.created_at, '%d/%m/%Y %h:%i %p') AS created_at
+            
+        FROM sp_payroll p
+        LEFT JOIN account_information sp ON p.service_provider_id = sp.registration_id
+        LEFT JOIN account_information cust ON p.customer_id = cust.registration_id
+        ORDER BY p.year DESC, p.month DESC, p.payroll_id DESC
+    `;
+
+    const [rows] = await db.query(query);
+    return rows;
+}
+
+
 // Export all functions
 module.exports = {
+
+    getAllPayrollData,
     // Salary Config
     upsertSalaryConfig,
     getSalaryConfigByBooking,
