@@ -1203,7 +1203,9 @@ const getAssignedDetailsByProviderId = async (provider_id) => {
         console.error("Query Error:", error);
         throw error;
     }
+
 };
+
 
 
 module.exports = {
@@ -1251,5 +1253,6 @@ module.exports = {
     getServiceFiltersAndPricing,
     getCustomerBookings,
     getInterviewDetailsByProviderId,
-    getAssignedDetailsByProviderId
+    getAssignedDetailsByProviderId,
+    getAllServiceBookings
 };

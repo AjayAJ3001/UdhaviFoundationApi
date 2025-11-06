@@ -2735,6 +2735,185 @@ try {
 //         });
 //     }
 // }
+// static async getAdminBookings(req, res) {
+//   try {
+//     const { status, service_id, search, date_from, date_to } = req.query;
+
+//     console.log("Query parameters:", { status, service_id, search, date_from, date_to });
+
+//     const whereConditions = ["1=1"];
+//     const queryParams = [];
+
+//     if (status && status !== "all") {
+//       whereConditions.push("sb.booking_status = ?");
+//       queryParams.push(status);
+//     }
+
+//     if (service_id) {
+//       whereConditions.push("sb.service_id = ?");
+//       queryParams.push(parseInt(service_id));
+//     }
+
+//     if (search) {
+//       whereConditions.push("(tc.name LIKE ? OR tc.mobile LIKE ? OR sb.booking_id LIKE ?)");
+//       const searchPattern = `%${search}%`;
+//       queryParams.push(searchPattern, searchPattern, searchPattern);
+//     }
+
+//     if (date_from) {
+//       whereConditions.push("DATE(sb.created_at) >= ?");
+//       queryParams.push(date_from);
+//     }
+
+//     if (date_to) {
+//       whereConditions.push("DATE(sb.created_at) <= ?");
+//       queryParams.push(date_to);
+//     }
+
+//     const whereClause = whereConditions.join(" AND ");
+
+//     const query = `
+//       SELECT 
+//         sb.id,
+//         sb.booking_id,
+//         sb.created_at,
+//         sb.service_start_date,
+//         sb.service_start_time,
+//         sb.service_end_time,
+//         sb.booking_status,
+//         sb.total_amount,
+//         sb.customer_filters,
+//         sb.remarks,
+//         sb.assigned_provider_id,
+//         sb.assigned_crm_id,
+//         sb.interview_status,
+//         sb.interview_date,
+//         sb.interview_time,
+//         sb.estimated_cost,
+//         sb.service_address,
+
+//         -- Service details
+//         st.name AS service_name,
+//         st.base_price,
+
+//         -- Customer details  
+//         tc.name AS customer_name,
+//         tc.mobile AS customer_mobile,
+//         tc.email AS customer_email,
+
+//         -- Provider details
+//         ai.full_name AS provider_name,
+//         ai.mobile_number AS provider_mobile,
+
+//         -- CRM user details (✅ uses correct fields)
+//         cu.name AS crm_user_name,
+//         cu.email AS crm_user_email,
+//         cu.phone AS crm_user_phone
+
+//       FROM service_bookings sb
+//       LEFT JOIN service_types st ON sb.service_id = st.service_id
+//       LEFT JOIN temp_customers tc ON sb.customer_id = tc.id  
+//       LEFT JOIN account_information ai ON sb.assigned_provider_id = ai.registration_id
+//       LEFT JOIN crm_users cu ON sb.assigned_crm_id = cu.id
+//       WHERE ${whereClause}
+//       ORDER BY sb.created_at DESC
+//     `;
+
+//     const [bookings] = await db.execute(query, queryParams);
+
+//     const processedBookings = bookings.map((booking) => {
+//       let parsedFilters = {};
+//       if (booking.customer_filters) {
+//         try {
+//           parsedFilters =
+//             typeof booking.customer_filters === "string"
+//               ? JSON.parse(booking.customer_filters)
+//               : booking.customer_filters;
+//         } catch (error) {
+//           console.error("Error parsing customer_filters for booking:", booking.booking_id, error);
+//           parsedFilters = {};
+//         }
+//       }
+
+//       return {
+//         id: booking.id,
+//         booking_id: booking.booking_id,
+//         created_at: booking.created_at,
+//         service_start_date: booking.service_start_date,
+//         service_start_time: booking.service_start_time,
+//         service_end_time: booking.service_end_time,
+//         booking_status: booking.booking_status,
+//         total_amount: parseFloat(booking.total_amount || 0),
+//         estimated_cost: parseFloat(booking.estimated_cost || 0),
+//         remarks: booking.remarks,
+
+//         service_details: {
+//           name: booking.service_name,
+//           base_price: parseFloat(booking.base_price || 0),
+//         },
+
+//         customer_details: {
+//           name: booking.customer_name,
+//           mobile: booking.customer_mobile,
+//           email: booking.customer_email,
+//           address: booking.service_address,
+//         },
+
+//         provider_details: booking.assigned_provider_id
+//           ? {
+//               id: booking.assigned_provider_id,
+//               name: booking.provider_name,
+//               mobile: booking.provider_mobile,
+//             }
+//           : null,
+
+//         crm_details: booking.assigned_crm_id
+//           ? {
+//               crm_user_id: booking.assigned_crm_id,
+//               crm_user_name: booking.crm_user_name,
+//               crm_user_email: booking.crm_user_email,
+//               crm_user_phone: booking.crm_user_phone,
+//             }
+//           : null,
+
+//         interview_details: {
+//           interview_status: booking.interview_status,
+//           interview_date: booking.interview_date,
+//           interview_time: booking.interview_time,
+//         },
+
+//         selected_filters: parsedFilters,
+//       };
+//     });
+
+//     res.json({
+//       success: true,
+//       message: `Retrieved ${processedBookings.length} bookings`,
+//       data: {
+//         bookings: processedBookings,
+//         total_count: processedBookings.length,
+//         filters_applied: {
+//           status: status || "all",
+//           service_id: service_id || "all",
+//           search: search || null,
+//           date_range: {
+//             from: date_from || null,
+//             to: date_to || null,
+//           },
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Get admin bookings error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to retrieve bookings",
+//       error: error.message,
+//     });
+//   }
+// }
+
+
 static async getAdminBookings(req, res) {
   try {
     const { status, service_id, search, date_from, date_to } = req.query;
@@ -2744,6 +2923,7 @@ static async getAdminBookings(req, res) {
     const whereConditions = ["1=1"];
     const queryParams = [];
 
+    // --- Filters ---
     if (status && status !== "all") {
       whereConditions.push("sb.booking_status = ?");
       queryParams.push(status);
@@ -2772,6 +2952,8 @@ static async getAdminBookings(req, res) {
 
     const whereClause = whereConditions.join(" AND ");
 
+    // --- Main Query ---
+    // ✅ Joins payment_transactions (most recent transaction per booking)
     const query = `
       SELECT 
         sb.id,
@@ -2792,6 +2974,9 @@ static async getAdminBookings(req, res) {
         sb.estimated_cost,
         sb.service_address,
 
+        -- Computed service duration (hours)
+        TIMESTAMPDIFF(HOUR, sb.service_start_time, sb.service_end_time) AS total_hours,
+
         -- Service details
         st.name AS service_name,
         st.base_price,
@@ -2805,22 +2990,40 @@ static async getAdminBookings(req, res) {
         ai.full_name AS provider_name,
         ai.mobile_number AS provider_mobile,
 
-        -- CRM user details (✅ uses correct fields)
+        -- CRM user details
         cu.name AS crm_user_name,
         cu.email AS crm_user_email,
-        cu.phone AS crm_user_phone
+        cu.phone AS crm_user_phone,
+
+        -- ✅ Payment details
+        pt.payment_id,
+        pt.transaction_id,
+        pt.payment_method,
+        pt.amount AS payment_amount,
+        pt.payment_status,
+        pt.gateway_response,
+        pt.created_at AS payment_created_at,
+        pt.updated_at AS payment_updated_at
 
       FROM service_bookings sb
       LEFT JOIN service_types st ON sb.service_id = st.service_id
       LEFT JOIN temp_customers tc ON sb.customer_id = tc.id  
       LEFT JOIN account_information ai ON sb.assigned_provider_id = ai.registration_id
       LEFT JOIN crm_users cu ON sb.assigned_crm_id = cu.id
+      LEFT JOIN payment_transactions pt 
+        ON sb.booking_id = pt.booking_id
+        AND pt.created_at = (
+          SELECT MAX(created_at) 
+          FROM payment_transactions 
+          WHERE booking_id = sb.booking_id
+        )
       WHERE ${whereClause}
       ORDER BY sb.created_at DESC
     `;
 
     const [bookings] = await db.execute(query, queryParams);
 
+    // --- Process results ---
     const processedBookings = bookings.map((booking) => {
       let parsedFilters = {};
       if (booking.customer_filters) {
@@ -2842,6 +3045,7 @@ static async getAdminBookings(req, res) {
         service_start_date: booking.service_start_date,
         service_start_time: booking.service_start_time,
         service_end_time: booking.service_end_time,
+        total_hours: booking.total_hours,
         booking_status: booking.booking_status,
         total_amount: parseFloat(booking.total_amount || 0),
         estimated_cost: parseFloat(booking.estimated_cost || 0),
@@ -2876,6 +3080,18 @@ static async getAdminBookings(req, res) {
             }
           : null,
 
+        // ✅ Always include payment details
+        payment_details: {
+          payment_id: booking.payment_id || null,
+          transaction_id: booking.transaction_id || null,
+          method: booking.payment_method || "N/A",
+          amount: parseFloat(booking.payment_amount || 0),
+          status: booking.payment_status || "pending",
+          gateway_response: booking.gateway_response || null,
+          created_at: booking.payment_created_at || null,
+          updated_at: booking.payment_updated_at || null,
+        },
+
         interview_details: {
           interview_status: booking.interview_status,
           interview_date: booking.interview_date,
@@ -2883,9 +3099,17 @@ static async getAdminBookings(req, res) {
         },
 
         selected_filters: parsedFilters,
+
+        // 👇 For frontend use
+        action: {
+          can_edit: booking.booking_status !== "completed",
+          can_cancel: booking.booking_status === "pending",
+          can_view_payment: !!booking.payment_status,
+        },
       };
     });
 
+    // --- Send response ---
     res.json({
       success: true,
       message: `Retrieved ${processedBookings.length} bookings`,
@@ -2912,6 +3136,7 @@ static async getAdminBookings(req, res) {
     });
   }
 }
+
 
 // 2. GET AVAILABLE PROVIDERS FOR ASSIGNMENT
 static async getAvailableProviders(req, res) {
@@ -4759,6 +4984,9 @@ static async getAssignedDetailsByProvider(req, res) {
             });
         }
     }
+
+
+
 
 }
 
