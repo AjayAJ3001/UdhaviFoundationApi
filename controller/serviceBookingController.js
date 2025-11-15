@@ -4549,20 +4549,27 @@ static async getAdminBookingById(req, res) {
       });
     }
 
-    // 1️⃣ Booking info
+    // 1️⃣ Booking info (JOIN CRM + include pricing fields)
     const [bookingRows] = await db.execute(
       `
       SELECT
         sb.id,
         sb.booking_id,
         sb.booking_status,
-        sb.total_amount,
+        COALESCE(sb.base_cost, 0) AS base_cost,
+        COALESCE(sb.tax_amount, 0) AS tax_amount,
+        COALESCE(sb.discount_amount, 0) AS discount_amount,
+        COALESCE(sb.total_amount, 0) AS total_amount,
         sb.estimated_cost,
+        sb.payment_status,
         sb.remarks,
         sb.service_address,
         sb.customer_filters,
         sb.assigned_provider_id,
         sb.assigned_crm_id,
+        cu.name AS crm_name,
+        cu.email AS crm_email,
+        cu.phone AS crm_phone,
         sb.interview_status,
         sb.interview_date,
         sb.interview_time,
@@ -4582,6 +4589,7 @@ static async getAdminBookingById(req, res) {
       FROM service_bookings sb
       LEFT JOIN service_types st ON sb.service_id = st.service_id
       LEFT JOIN temp_customers tc ON sb.customer_id = tc.id
+      LEFT JOIN crm_users cu ON sb.assigned_crm_id = cu.id
       WHERE sb.booking_id = ?
       LIMIT 1
       `,
@@ -4596,6 +4604,8 @@ static async getAdminBookingById(req, res) {
     }
 
     const booking = bookingRows[0];
+
+    // Parse customer filters safely
     let parsedFilters = [];
     if (booking.customer_filters) {
       try {
@@ -4635,8 +4645,6 @@ static async getAdminBookingById(req, res) {
           psc.booking_charges,
           psc.total_amount,
           psc.final_amount_with_tax,
-          psc.status,
-          psc.is_active,
           ai.registration_id AS provider_registration_id,
           ai.full_name AS provider_name,
           ai.mobile_number AS provider_mobile,
@@ -4724,13 +4732,17 @@ static async getAdminBookingById(req, res) {
       selectedFilters = parsedFilters;
     }
 
-    // ✅ Final response
+    // ✅ 4️⃣ Final Response (added pricing + CRM details)
     const response = {
       id: booking.id,
       booking_id: booking.booking_id,
       booking_status: booking.booking_status,
-      total_amount: Number(booking.total_amount) || null,
+      base_cost: Number(booking.base_cost) || 0,
+      tax_amount: Number(booking.tax_amount) || 0,
+      discount_amount: Number(booking.discount_amount) || 0,
+      total_amount: Number(booking.total_amount) || 0,
       estimated_cost: Number(booking.estimated_cost) || null,
+      payment_status: booking.payment_status || null,
       remarks: booking.remarks || null,
       created_at: booking.created_at,
       service_details: {
@@ -4747,7 +4759,12 @@ static async getAdminBookingById(req, res) {
       },
       provider_details: providerDetails,
       crm_details: booking.assigned_crm_id
-        ? { crm_user_id: booking.assigned_crm_id }
+        ? {
+            crm_user_id: booking.assigned_crm_id,
+            name: booking.crm_name,
+            email: booking.crm_email,
+            phone: booking.crm_phone,
+          }
         : null,
       interview_details: {
         interview_status: booking.interview_status,
@@ -4771,6 +4788,8 @@ static async getAdminBookingById(req, res) {
     });
   }
 }
+
+
 // static async getInterviewDetailsByProviderId(req, res) {
 //     const { provider_id } = req.params;
 
@@ -4984,6 +5003,127 @@ static async getAssignedDetailsByProvider(req, res) {
             });
         }
     }
+
+// ✅ controller: updateBookingDetails
+static async updateBookingDetails(req, res) {
+  try {
+    console.log("🟩 Incoming Payload from frontend:", req.body);
+
+    const {
+      booking_id,
+      booking_status,
+      crm_user_id,
+      provider_id,
+      payment_status,
+      notes,
+      pricing = {},
+    } = req.body;
+
+    // ✅ Validation: booking_id required
+    if (!booking_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking ID is required",
+      });
+    }
+
+    // ✅ Normalize data
+    const crmId = crm_user_id ? parseInt(crm_user_id) : null;
+    const providerId = provider_id ? parseInt(provider_id) : null;
+    const status = booking_status ? booking_status.toLowerCase() : null;
+    const payment = payment_status || null;
+    const remarks = notes || null;
+
+    const base = Number(pricing.base) || 0;
+    const tax = Number(pricing.tax) || 0;
+    const discount = Number(pricing.discount) || 0;
+    const total = Number(pricing.total) || base + tax - discount;
+
+    const isNumericId = /^\d+$/.test(booking_id);
+
+    // ✅ Check if booking exists
+    const [existing] = await db.query(
+      `SELECT id, booking_id FROM service_bookings WHERE ${
+        isNumericId ? "id = ?" : "booking_id = ?"
+      }`,
+      [booking_id]
+    );
+
+    if (!existing.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    const bookingKey = isNumericId ? existing[0].id : existing[0].booking_id;
+
+    // ✅ Update
+    const [updateResult] = await db.query(
+      `
+      UPDATE service_bookings
+      SET
+        booking_status = COALESCE(?, booking_status),
+        assigned_crm_id = COALESCE(?, assigned_crm_id),
+        assigned_provider_id = COALESCE(?, assigned_provider_id),
+        payment_status = COALESCE(?, payment_status),
+        remarks = COALESCE(?, remarks),
+        base_cost = ?,
+        tax_amount = ?,
+        discount_amount = ?,
+        total_amount = ?,
+        updated_at = NOW()
+      WHERE ${isNumericId ? "id = ?" : "booking_id = ?"}
+    `,
+      [status, crmId, providerId, payment, remarks, base, tax, discount, total, bookingKey]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No changes were applied",
+      });
+    }
+
+    // ✅ Return updated data
+    const [updated] = await db.query(
+      `
+      SELECT
+        sb.id,
+        sb.booking_id,
+        sb.booking_status,
+        sb.payment_status,
+        sb.total_amount,
+        sb.base_cost,
+        sb.tax_amount,
+        sb.discount_amount,
+        sb.remarks,
+        cu.name AS assigned_crm_name,
+        u.name AS assigned_provider_name
+      FROM service_bookings sb
+      LEFT JOIN crm_users cu ON sb.assigned_crm_id = cu.id
+      LEFT JOIN users u ON sb.assigned_provider_id = u.id
+      WHERE ${isNumericId ? "sb.id = ?" : "sb.booking_id = ?"}
+      `,
+      [bookingKey]
+    );
+
+    console.log("✅ Updated booking:", updated[0]);
+
+    res.status(200).json({
+      success: true,
+      message: "Booking updated successfully",
+      data: updated[0],
+    });
+  } catch (error) {
+    console.error("❌ Error in updateBookingDetails:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+}
 
 
 

@@ -929,6 +929,8 @@ app.patch('/api/booking/provider-configurations/:configId/toggle-status',
     serviceBookingController.getAssignmentHistory
   );
 
+
+
   console.log('✅ Admin Booking Management routes added:');
   console.log('   GET /api/admin/bookings');
   console.log('   GET /api/admin/bookings/:id/available-providers');
@@ -1192,6 +1194,23 @@ app.get(
   app.get('/api/booking/admin/bookings/:booking_id/history',
     serviceBookingController.getAssignmentHistory
   );
+
+  // ✅ NEW: Save Booking Details (Admin)
+app.put(
+  '/api/booking/admin/bookings/update',
+  [
+    body('booking_id').notEmpty().withMessage('Booking ID is required'),
+    body('booking_status').optional().isString(),
+    body('crm_user_id').optional().isInt({ min: 1 }).withMessage('CRM User ID must be valid'),
+    body('provider_id').optional().isInt({ min: 1 }).withMessage('Provider ID must be valid'),
+    body('payment_status').optional().isString(),
+    body('notes').optional().isString().isLength({ max: 2000 }),
+    body('pricing').optional().isObject()
+  ],
+  handleValidationErrors,
+  serviceBookingController.updateBookingDetails
+);
+
 
   // ==========================================
   // UTILITY ROUTES
@@ -2500,6 +2519,7 @@ if (dropdownController) {
       '/relationship-types': 'getRelationshipTypes',
       '/interview-status': 'getInterviewStatus',
       '/pf-toggle': 'getPfToggle',
+      '/crm-users': 'getCrmUsers',
     };
 
     Object.entries(routes).forEach(([route, handler]) => {

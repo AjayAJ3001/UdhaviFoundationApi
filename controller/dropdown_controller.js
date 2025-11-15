@@ -345,23 +345,48 @@ class DropdownController {
         });
     }
 
-// ---- Get Interview Status Dropdown ----
-static getInterviewStatus(req, res) {
-  db.query(queries.getInterviewStatus, (err, results) => {
-    if (err) {
-      console.error('Error fetching interview status:', err);
+  // ✅ Get CRM Users for dropdown
+  static async getCrmUsers(req, res) {
+    try {
+      const [rows] = await db.promise().query(`
+        SELECT id, name, email, phone
+        FROM crm_users
+        ORDER BY name ASC
+      `);
+
+      return res.status(200).json({
+        success: true,
+        message: 'CRM users retrieved successfully',
+        data: rows,
+      });
+    } catch (error) {
+      console.error('❌ Error fetching CRM users:', error.message);
       return res.status(500).json({
         success: false,
-        error: { message: 'Failed to fetch interview status dropdown' }
+        message: 'Database query failed',
+        error: error.message,
       });
     }
-    res.json({
-      success: true,
-      message: 'Interview status dropdown fetched successfully',
-      data: results
-    });
-  });
-}
+  }
+
+// ✅ Get Interview Status Dropdown
+  static async getInterviewStatus(req, res) {
+    try {
+      const [rows] = await db.promise().query(queries.getInterviewStatus);
+      res.status(200).json({
+        success: true,
+        message: 'Interview status dropdown fetched successfully',
+        data: rows,
+      });
+    } catch (error) {
+      console.error('Error fetching interview status:', error.message);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch interview status dropdown',
+        error: error.message,
+      });
+    }
+  }
 
 // ---- Get PF Toggle Dropdown ----
 static getPfToggle(req, res) {
