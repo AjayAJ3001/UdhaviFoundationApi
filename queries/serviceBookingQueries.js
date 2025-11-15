@@ -1254,5 +1254,5 @@ module.exports = {
     getCustomerBookings,
     getInterviewDetailsByProviderId,
     getAssignedDetailsByProviderId,
-    getAllServiceBookings
+    // getAllServiceBookings
 };

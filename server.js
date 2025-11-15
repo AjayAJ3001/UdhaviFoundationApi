@@ -9,6 +9,9 @@ dotenv.config();
 
 const app = express();
 
+console.log("💡 Loading Admin Booking Routes first...");
+
+
 // Core Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -657,7 +660,10 @@ const serviceBookingController = loadModule('./controller/serviceBookingControll
 //   console.warn('⚠️  Service Booking routes skipped - controller not found');
 // }
 
+
+
 if (serviceBookingController) {
+  
   console.log('Registering Service Booking routes directly...');
   
   const { body, param,query, validationResult } = require('express-validator');
@@ -675,6 +681,8 @@ if (serviceBookingController) {
     next();
   };
 
+
+
   // Basic Service Booking Routes
   app.get('/api/booking/services', serviceBookingController.getAllServices);
   app.get('/api/booking/filters/:service_id', serviceBookingController.getServiceFilters);
@@ -686,6 +694,7 @@ if (serviceBookingController) {
   app.get('/api/booking/provider/:service_provider_id', serviceBookingController.getServiceProviderBookings);
   app.get('/api/booking/search', serviceBookingController.searchBookings);
   app.get('/api/booking/stats', serviceBookingController.getBookingStats);
+  
 
   // Provider Configuration Routes
   app.post('/api/booking/provider/save-service-config',
@@ -928,6 +937,8 @@ app.patch('/api/booking/provider-configurations/:configId/toggle-status',
   app.get('/api/admin/bookings/:booking_id/history',
     serviceBookingController.getAssignmentHistory
   );
+
+
 
   console.log('✅ Admin Booking Management routes added:');
   console.log('   GET /api/admin/bookings');
@@ -1192,6 +1203,23 @@ app.get(
   app.get('/api/booking/admin/bookings/:booking_id/history',
     serviceBookingController.getAssignmentHistory
   );
+
+  // ✅ NEW: Save Booking Details (Admin)
+app.put(
+  '/api/booking/admin/bookings/update',
+  [
+    body('booking_id').notEmpty().withMessage('Booking ID is required'),
+    body('booking_status').optional().isString(),
+    body('crm_user_id').optional().isInt({ min: 1 }).withMessage('CRM User ID must be valid'),
+    body('provider_id').optional().isInt({ min: 1 }).withMessage('Provider ID must be valid'),
+    body('payment_status').optional().isString(),
+    body('notes').optional().isString().isLength({ max: 2000 }),
+    body('pricing').optional().isObject()
+  ],
+  handleValidationErrors,
+  serviceBookingController.updateBookingDetails
+);
+
 
   // ==========================================
   // UTILITY ROUTES
@@ -2500,6 +2528,7 @@ if (dropdownController) {
       '/relationship-types': 'getRelationshipTypes',
       '/interview-status': 'getInterviewStatus',
       '/pf-toggle': 'getPfToggle',
+      '/crm-users': 'getCrmUsers',
     };
 
     Object.entries(routes).forEach(([route, handler]) => {
