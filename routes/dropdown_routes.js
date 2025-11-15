@@ -209,8 +209,5 @@ router.get('/dropdown/interview-status', registrationDropdownController.getInter
 // Get PF Toggle Dropdown
 router.get('/dropdown/pf-toggle', registrationDropdownController.getPfToggle);
 
-// GET /api/dropdown/crm-users
-router.get("/crm-users", registrationDropdownController.getCRMUsers);
-
 
 module.exports = router;

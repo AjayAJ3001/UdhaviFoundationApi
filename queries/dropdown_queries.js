@@ -105,16 +105,17 @@ const getRelationshipTypes = `
 `;
 
 const getInterviewStatus = `
-  SELECT id, status_name AS label 
-  FROM interview_status_options
-  ORDER BY id ASC
-`;
+    SELECT id, status_name AS label 
+    FROM interview_status_options
+    ORDER BY id ASC
+  `;
 
-const getPfToggle = `
-  SELECT id, option_name AS label 
-  FROM pf_toggle_options
-  ORDER BY id ASC
-`;
+const   getPfToggle = `
+    SELECT id, option_name AS label 
+    FROM pf_toggle_options
+    ORDER BY id ASC
+  `;
+
 module.exports = {
   getPreferredLocations,
   getAllStates,

@@ -775,20 +775,4 @@ router.get(
   ServiceBookingController.getAssignedDetailsByProvider
 );
 
-router.put(
-  "/admin/bookings/update",
-  [
-    body("booking_id").notEmpty().withMessage("Booking ID is required"),
-    body("booking_status").optional().isString(),
-    body("crm_user_id").optional().isInt({ min: 1 }).withMessage("CRM User ID must be valid"),
-    body("provider_id").optional().isInt({ min: 1 }).withMessage("Provider ID must be valid"),
-    body("payment_status").optional().isString(),
-    body("notes").optional().isString().isLength({ max: 2000 }),
-    body("pricing").optional().isObject()
-  ],
-  ServiceBookingController.updateBookingDetails
-);
-
-
-
 module.exports = router;
