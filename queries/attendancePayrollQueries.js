@@ -401,6 +401,39 @@ const getCustomerServiceProvidersAttendance = async (customer_id, month, year) =
 /**
  * Apply for leave
  */
+// const applyLeave = async (leaveData) => {
+//     const {
+//         service_provider_id,
+//         customer_id,
+//         booking_id,
+//         leave_type,
+//         start_date,
+//         end_date,
+//         reason,
+//         is_paid = false
+//     } = leaveData;
+
+//     try {
+//       const query = `
+//     INSERT INTO sp_leave 
+//     (service_provider_id, customer_id, booking_id, leave_type, from_date, to_date, 
+//      total_days, reason, is_paid_leave, status)
+//     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+// `;
+        
+//         const [result] = await db.execute(query, [
+//             service_provider_id, customer_id, booking_id, leave_type,
+//             start_date, end_date, end_date, start_date, reason, is_paid
+//         ]);
+        
+//         return result;
+//     } catch (error) {
+//         console.error('Apply leave error:', error);
+//         throw error;
+//     }
+// };
+
+
 const applyLeave = async (leaveData) => {
     const {
         service_provider_id,
@@ -412,27 +445,24 @@ const applyLeave = async (leaveData) => {
         reason,
         is_paid = false
     } = leaveData;
-
+ 
     try {
         const query = `
             INSERT INTO sp_leave (
                 service_provider_id, customer_id, booking_id, leave_type,
-                start_date, end_date, total_days, reason, is_paid, status
+                from_date, to_date, total_days, reason, is_paid_leave, status
             ) VALUES (?, ?, ?, ?, ?, ?, DATEDIFF(?, ?) + 1, ?, ?, 'PENDING')
         `;
-        
         const [result] = await db.execute(query, [
             service_provider_id, customer_id, booking_id, leave_type,
             start_date, end_date, end_date, start_date, reason, is_paid
         ]);
-        
         return result;
     } catch (error) {
         console.error('Apply leave error:', error);
         throw error;
     }
 };
-
 /**
  * Approve/Reject leave
  */

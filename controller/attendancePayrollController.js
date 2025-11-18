@@ -582,52 +582,102 @@ class AttendancePayrollController {
      * Approve or Reject leave
      * PUT /api/attendance-payroll/leave/:leave_id/status
      */
+    // static async updateLeaveStatus(req, res) {
+    //     try {
+    //         const { leave_id } = req.params;
+    //         const { status, rejection_reason } = req.body;
+
+    //         if (!['APPROVED', 'REJECTED'].includes(status)) {
+    //             return res.status(400).json({
+    //                 success: false,
+    //                 message: 'Invalid status. Must be APPROVED or REJECTED'
+    //             });
+    //         }
+
+    //         if (status === 'REJECTED' && !rejection_reason) {
+    //             return res.status(400).json({
+    //                 success: false,
+    //                 message: 'Rejection reason is required'
+    //             });
+    //         }
+
+    //         const approved_by = req.user?.registration_id;
+
+    //         await attendancePayrollQueries.updateLeaveStatus(
+    //             leave_id,
+    //             status,
+    //             approved_by,
+    //             rejection_reason
+    //         );
+
+    //         res.json({
+    //             success: true,
+    //             message: `Leave ${status.toLowerCase()} successfully`,
+    //             data: {
+    //                 leave_id,
+    //                 status
+    //             }
+    //         });
+
+    //     } catch (error) {
+    //         console.error('Update leave status error:', error);
+    //         res.status(500).json({
+    //             success: false,
+    //             message: 'Failed to update leave status',
+    //             error: error.message
+    //         });
+    //     }
+    // }
+
+
     static async updateLeaveStatus(req, res) {
-        try {
-            const { leave_id } = req.params;
-            const { status, rejection_reason } = req.body;
-
-            if (!['APPROVED', 'REJECTED'].includes(status)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid status. Must be APPROVED or REJECTED'
-                });
-            }
-
-            if (status === 'REJECTED' && !rejection_reason) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Rejection reason is required'
-                });
-            }
-
-            const approved_by = req.user?.registration_id;
-
-            await attendancePayrollQueries.updateLeaveStatus(
-                leave_id,
-                status,
-                approved_by,
-                rejection_reason
-            );
-
-            res.json({
-                success: true,
-                message: `Leave ${status.toLowerCase()} successfully`,
-                data: {
-                    leave_id,
-                    status
-                }
-            });
-
-        } catch (error) {
-            console.error('Update leave status error:', error);
-            res.status(500).json({
+    try {
+        const { leave_id } = req.params;
+        const { status, rejection_reason } = req.body;
+ 
+        if (!['APPROVED', 'REJECTED'].includes(status)) {
+            return res.status(400).json({
                 success: false,
-                message: 'Failed to update leave status',
-                error: error.message
+                message: 'Invalid status. Must be APPROVED or REJECTED'
             });
         }
+ 
+        if (status === 'REJECTED' && !rejection_reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Rejection reason is required'
+            });
+        }
+ 
+        // ✅ FIX: Convert undefined to null
+        const approved_by = req.user?.registration_id || null;
+        const rejection_reason_value = rejection_reason || null;
+ 
+        await attendancePayrollQueries.updateLeaveStatus(
+            leave_id,
+            status,
+            approved_by,
+            rejection_reason_value
+        );
+ 
+        res.json({
+            success: true,
+            message: `Leave ${status.toLowerCase()} successfully`,
+            data: {
+                leave_id,
+                status
+            }
+        });
+ 
+    } catch (error) {
+        console.error('Update leave status error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update leave status',
+            error: error.message
+        });
     }
+}
 
     /**
      * Get leave history for a service provider
