@@ -1,279 +1,267 @@
 // controller/attendancePayrollController.js
 const attendancePayrollQueries = require('../queries/attendancePayrollQueries');
 const { validationResult } = require('express-validator');
-// Load Attendance & Payroll Controller
-//const attendancePayrollController = loadModule('./controller/attendancePayrollController', 'Attendance & Payroll Controller'); 
-// Load Attendance & Payroll Controller
-//const attendancePayrollController = loadModule('./controller/attendancePayrollController', 'Attendance & Payroll Controller');
 class AttendancePayrollController {
 
-    // ==========================================
-    // SALARY CONFIGURATION ENDPOINTS
-    // ==========================================
+    // /**
+    //  * Create or update salary configuration
+    //  * POST /api/attendance-payroll/salary-config
+    //  */
+    // static async createSalaryConfig(req, res) {
+    //     try {
+    //         const errors = validationResult(req);
+    //         if (!errors.isEmpty()) {
+    //             return res.status(400).json({
+    //                 success: false,
+    //                 message: 'Validation errors',
+    //                 errors: errors.array()
+    //             });
+    //         }
 
-    /**
-     * Create or update salary configuration
-     * POST /api/attendance-payroll/salary-config
-     */
-    static async createSalaryConfig(req, res) {
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Validation errors',
-                    errors: errors.array()
-                });
-            }
+    //         const {
+    //             booking_id,
+    //             service_provider_id,
+    //             customer_id,
+    //             monthly_salary,
+    //             working_days_per_month = 26,
+    //             pf_percentage = 12.00,
+    //             pf_enabled = true,
+    //             effective_from_date
+    //         } = req.body;
 
-            const {
-                booking_id,
-                service_provider_id,
-                customer_id,
-                monthly_salary,
-                working_days_per_month = 26,
-                pf_percentage = 12.00,
-                pf_enabled = true,
-                effective_from_date
-            } = req.body;
+    //         // Calculate per day salary
+    //         const per_day_salary = (monthly_salary / working_days_per_month).toFixed(2);
 
-            // Calculate per day salary
-            const per_day_salary = (monthly_salary / working_days_per_month).toFixed(2);
+    //         const configData = {
+    //             booking_id,
+    //             service_provider_id,
+    //             customer_id,
+    //             monthly_salary,
+    //             per_day_salary,
+    //             working_days_per_month,
+    //             pf_percentage,
+    //             pf_enabled,
+    //             effective_from_date,
+    //             created_by: req.user?.registration_id || customer_id
+    //         };
 
-            const configData = {
-                booking_id,
-                service_provider_id,
-                customer_id,
-                monthly_salary,
-                per_day_salary,
-                working_days_per_month,
-                pf_percentage,
-                pf_enabled,
-                effective_from_date,
-                created_by: req.user?.registration_id || customer_id
-            };
+    //         const result = await attendancePayrollQueries.upsertSalaryConfig(configData);
 
-            const result = await attendancePayrollQueries.upsertSalaryConfig(configData);
+    //         res.status(201).json({
+    //             success: true,
+    //             message: 'Salary configuration saved successfully',
+    //             data: {
+    //                 config_id: result.insertId,
+    //                 monthly_salary,
+    //                 per_day_salary,
+    //                 working_days_per_month,
+    //                 pf_percentage
+    //             }
+    //         });
 
-            res.status(201).json({
-                success: true,
-                message: 'Salary configuration saved successfully',
-                data: {
-                    config_id: result.insertId,
-                    monthly_salary,
-                    per_day_salary,
-                    working_days_per_month,
-                    pf_percentage
-                }
-            });
+    //     } catch (error) {
+    //         console.error('Create salary config error:', error);
+    //         res.status(500).json({
+    //             success: false,
+    //             message: 'Failed to save salary configuration',
+    //             error: error.message
+    //         });
+    //     }
+    // }
 
-        } catch (error) {
-            console.error('Create salary config error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to save salary configuration',
-                error: error.message
-            });
-        }
-    }
+    // /**
+    //  * Get salary configuration by booking ID
+    //  * GET /api/attendance-payroll/salary-config/:booking_id
+    //  */
+    // static async getSalaryConfig(req, res) {
+    //     try {
+    //         const { booking_id } = req.params;
 
-    /**
-     * Get salary configuration by booking ID
-     * GET /api/attendance-payroll/salary-config/:booking_id
-     */
-    static async getSalaryConfig(req, res) {
-        try {
-            const { booking_id } = req.params;
+    //         const config = await attendancePayrollQueries.getSalaryConfigByBooking(booking_id);
 
-            const config = await attendancePayrollQueries.getSalaryConfigByBooking(booking_id);
+    //         if (!config) {
+    //             return res.status(404).json({
+    //                 success: false,
+    //                 message: 'Salary configuration not found'
+    //             });
+    //         }
 
-            if (!config) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Salary configuration not found'
-                });
-            }
+    //         res.json({
+    //             success: true,
+    //             message: 'Salary configuration retrieved successfully',
+    //             data: config
+    //         });
 
-            res.json({
-                success: true,
-                message: 'Salary configuration retrieved successfully',
-                data: config
-            });
+    //     } catch (error) {
+    //         console.error('Get salary config error:', error);
+    //         res.status(500).json({
+    //             success: false,
+    //             message: 'Failed to retrieve salary configuration',
+    //             error: error.message
+    //         });
+    //     }
+    // }
 
-        } catch (error) {
-            console.error('Get salary config error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to retrieve salary configuration',
-                error: error.message
-            });
-        }
-    }
+    // /**
+    //  * Punch In - Customer marks service provider check-in
+    //  * POST /api/attendance-payroll/punch-in
+    //  */
+    // static async punchIn(req, res) {
+    //     try {
+    //         const errors = validationResult(req);
+    //         if (!errors.isEmpty()) {
+    //             return res.status(400).json({
+    //                 success: false,
+    //                 message: 'Validation errors',
+    //                 errors: errors.array()
+    //             });
+    //         }
 
-    // ==========================================
-    // ATTENDANCE ENDPOINTS
-    // ==========================================
+    //         const {
+    //             service_provider_id,
+    //             customer_id,
+    //             booking_id,
+    //             latitude,
+    //             longitude
+    //         } = req.body;
 
-    /**
-     * Punch In - Customer marks service provider check-in
-     * POST /api/attendance-payroll/punch-in
-     */
-    static async punchIn(req, res) {
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Validation errors',
-                    errors: errors.array()
-                });
-            }
+    //         // Get current date and time
+    //         const attendance_date = new Date().toISOString().split('T')[0];
+    //         const check_in_time = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-            const {
-                service_provider_id,
-                customer_id,
-                booking_id,
-                latitude,
-                longitude
-            } = req.body;
+    //         // Check if already punched in today
+    //         const existing = await attendancePayrollQueries.getAttendanceByDate(
+    //             service_provider_id, 
+    //             attendance_date
+    //         );
 
-            // Get current date and time
-            const attendance_date = new Date().toISOString().split('T')[0];
-            const check_in_time = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    //         if (existing && existing.check_in_time) {
+    //             return res.status(400).json({
+    //                 success: false,
+    //                 message: 'Already punched in today',
+    //                 data: {
+    //                     check_in_time: existing.check_in_time,
+    //                     attendance_date: existing.attendance_date
+    //                 }
+    //             });
+    //         }
 
-            // Check if already punched in today
-            const existing = await attendancePayrollQueries.getAttendanceByDate(
-                service_provider_id, 
-                attendance_date
-            );
+    //         const attendanceData = {
+    //             service_provider_id,
+    //             customer_id,
+    //             booking_id,
+    //             attendance_date,
+    //             check_in_time,
+    //             check_in_latitude: latitude,
+    //             check_in_longitude: longitude,
+    //             created_by: customer_id
+    //         };
 
-            if (existing && existing.check_in_time) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Already punched in today',
-                    data: {
-                        check_in_time: existing.check_in_time,
-                        attendance_date: existing.attendance_date
-                    }
-                });
-            }
+    //         await attendancePayrollQueries.punchIn(attendanceData);
 
-            const attendanceData = {
-                service_provider_id,
-                customer_id,
-                booking_id,
-                attendance_date,
-                check_in_time,
-                check_in_latitude: latitude,
-                check_in_longitude: longitude,
-                created_by: customer_id
-            };
+    //         res.status(201).json({
+    //             success: true,
+    //             message: 'Punched in successfully',
+    //             data: {
+    //                 attendance_date,
+    //                 check_in_time,
+    //                 location: { latitude, longitude }
+    //             }
+    //         });
 
-            await attendancePayrollQueries.punchIn(attendanceData);
+    //     } catch (error) {
+    //         console.error('Punch in error:', error);
+    //         res.status(500).json({
+    //             success: false,
+    //             message: 'Failed to punch in',
+    //             error: error.message
+    //         });
+    //     }
+    // }
 
-            res.status(201).json({
-                success: true,
-                message: 'Punched in successfully',
-                data: {
-                    attendance_date,
-                    check_in_time,
-                    location: { latitude, longitude }
-                }
-            });
+    // /**
+    //  * Punch Out - Customer marks service provider check-out
+    //  * POST /api/attendance-payroll/punch-out
+    //  */
+    // static async punchOut(req, res) {
+    //     try {
+    //         const errors = validationResult(req);
+    //         if (!errors.isEmpty()) {
+    //             return res.status(400).json({
+    //                 success: false,
+    //                 message: 'Validation errors',
+    //                 errors: errors.array()
+    //             });
+    //         }
 
-        } catch (error) {
-            console.error('Punch in error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to punch in',
-                error: error.message
-            });
-        }
-    }
+    //         const {
+    //             service_provider_id,
+    //             latitude,
+    //             longitude
+    //         } = req.body;
 
-    /**
-     * Punch Out - Customer marks service provider check-out
-     * POST /api/attendance-payroll/punch-out
-     */
-    static async punchOut(req, res) {
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Validation errors',
-                    errors: errors.array()
-                });
-            }
+    //         const attendance_date = new Date().toISOString().split('T')[0];
+    //         const check_out_time = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-            const {
-                service_provider_id,
-                latitude,
-                longitude
-            } = req.body;
+    //         // Check if punched in
+    //         const existing = await attendancePayrollQueries.getAttendanceByDate(
+    //             service_provider_id, 
+    //             attendance_date
+    //         );
 
-            const attendance_date = new Date().toISOString().split('T')[0];
-            const check_out_time = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    //         if (!existing || !existing.check_in_time) {
+    //             return res.status(400).json({
+    //                 success: false,
+    //                 message: 'No check-in record found for today. Please punch in first.'
+    //             });
+    //         }
 
-            // Check if punched in
-            const existing = await attendancePayrollQueries.getAttendanceByDate(
-                service_provider_id, 
-                attendance_date
-            );
+    //         if (existing.check_out_time) {
+    //             return res.status(400).json({
+    //                 success: false,
+    //                 message: 'Already punched out today',
+    //                 data: {
+    //                     check_out_time: existing.check_out_time
+    //                 }
+    //             });
+    //         }
 
-            if (!existing || !existing.check_in_time) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'No check-in record found for today. Please punch in first.'
-                });
-            }
+    //         const attendanceData = {
+    //             service_provider_id,
+    //             attendance_date,
+    //             check_out_time,
+    //             check_out_latitude: latitude,
+    //             check_out_longitude: longitude
+    //         };
 
-            if (existing.check_out_time) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Already punched out today',
-                    data: {
-                        check_out_time: existing.check_out_time
-                    }
-                });
-            }
+    //         await attendancePayrollQueries.punchOut(attendanceData);
 
-            const attendanceData = {
-                service_provider_id,
-                attendance_date,
-                check_out_time,
-                check_out_latitude: latitude,
-                check_out_longitude: longitude
-            };
+    //         // Calculate worked hours
+    //         const checkInTime = new Date(existing.check_in_time);
+    //         const checkOutTime = new Date(check_out_time);
+    //         const hours_worked = ((checkOutTime - checkInTime) / (1000 * 60 * 60)).toFixed(2);
 
-            await attendancePayrollQueries.punchOut(attendanceData);
+    //         res.json({
+    //             success: true,
+    //             message: 'Punched out successfully',
+    //             data: {
+    //                 attendance_date,
+    //                 check_in_time: existing.check_in_time,
+    //                 check_out_time,
+    //                 hours_worked,
+    //                 location: { latitude, longitude }
+    //             }
+    //         });
 
-            // Calculate worked hours
-            const checkInTime = new Date(existing.check_in_time);
-            const checkOutTime = new Date(check_out_time);
-            const hours_worked = ((checkOutTime - checkInTime) / (1000 * 60 * 60)).toFixed(2);
-
-            res.json({
-                success: true,
-                message: 'Punched out successfully',
-                data: {
-                    attendance_date,
-                    check_in_time: existing.check_in_time,
-                    check_out_time,
-                    hours_worked,
-                    location: { latitude, longitude }
-                }
-            });
-
-        } catch (error) {
-            console.error('Punch out error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to punch out',
-                error: error.message
-            });
-        }
-    }
+    //     } catch (error) {
+    //         console.error('Punch out error:', error);
+    //         res.status(500).json({
+    //             success: false,
+    //             message: 'Failed to punch out',
+    //             error: error.message
+    //         });
+    //     }
+    // }
 
     /**
      * Manual Attendance Entry - For missed punch in/out
@@ -502,10 +490,6 @@ class AttendancePayrollController {
         }
     }
 
-    // ==========================================
-    // LEAVE MANAGEMENT ENDPOINTS
-    // ==========================================
-
     /**
      * Apply for leave
      * POST /api/attendance-payroll/apply-leave
@@ -628,8 +612,6 @@ class AttendancePayrollController {
     //         });
     //     }
     // }
-
-
     static async updateLeaveStatus(req, res) {
     try {
         const { leave_id } = req.params;
@@ -740,11 +722,7 @@ class AttendancePayrollController {
             });
         }
     }
-
-    // ==========================================
-    // PAYROLL ENDPOINTS
-    // ==========================================
-
+    
     /**
      * Generate monthly payroll for a service provider
      * POST /api/attendance-payroll/generate-payroll
@@ -1539,7 +1517,451 @@ static async getAllPayrolls(req, res) {
             });
         }
     }
+    /**
+     * Get assigned service providers by booking ID
+     * GET /api/attendance-payroll/assigned-providers/booking/:booking_id
+     */
+    static async getAssignedProvidersByBooking(req, res) {
+        try {
+            const { booking_id } = req.params;
 
+            const providers = await attendancePayrollQueries.getAssignedProvidersByBookingId(booking_id);
+
+            if (!providers || providers.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No service providers found for this booking'
+                });
+            }
+
+            res.json({
+                success: true,
+                message: 'Assigned service providers retrieved successfully',
+                data: {
+                    booking_id: parseInt(booking_id),
+                    providers: providers,
+                    total_count: providers.length
+                }
+            });
+
+        } catch (error) {
+            console.error('Get assigned providers by booking error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve assigned providers',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Get assigned service providers by customer ID
+     * GET /api/attendance-payroll/assigned-providers/customer/:customer_id
+     */
+    static async getAssignedProvidersByCustomer(req, res) {
+        try {
+            const { customer_id } = req.params;
+
+            const providers = await attendancePayrollQueries.getAssignedProvidersByCustomerId(customer_id);
+
+            if (!providers || providers.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No service providers found for this customer'
+                });
+            }
+
+            // Group by service type
+            const groupedProviders = providers.reduce((acc, provider) => {
+                const serviceName = provider.service_name;
+                if (!acc[serviceName]) {
+                    acc[serviceName] = [];
+                }
+                acc[serviceName].push(provider);
+                return acc;
+            }, {});
+
+            res.json({
+                success: true,
+                message: 'Assigned service providers retrieved successfully',
+                data: {
+                    customer_id: parseInt(customer_id),
+                    all_providers: providers,
+                    grouped_by_service: groupedProviders,
+                    total_count: providers.length,
+                    services_count: Object.keys(groupedProviders).length
+                }
+            });
+
+        } catch (error) {
+            console.error('Get assigned providers by customer error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve assigned providers',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Verify provider assignment
+     * POST /api/attendance-payroll/verify-assignment
+     */
+    static async verifyAssignment(req, res) {
+        try {
+            const { service_provider_id, booking_id, customer_id } = req.body;
+
+            if (!service_provider_id || !booking_id || !customer_id) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'service_provider_id, booking_id, and customer_id are required'
+                });
+            }
+
+            const assignment = await attendancePayrollQueries.verifyProviderAssignment(
+                service_provider_id,
+                booking_id,
+                customer_id
+            );
+
+            if (!assignment) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Service provider is not assigned to this booking',
+                    is_assigned: false
+                });
+            }
+
+            res.json({
+                success: true,
+                message: 'Service provider is assigned',
+                is_assigned: true,
+                data: assignment
+            });
+
+        } catch (error) {
+            console.error('Verify assignment error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to verify assignment',
+                error: error.message
+            });
+        }
+    }
+
+    // ==========================================
+    // SALARY CONFIGURATION ROUTES
+    // ==========================================
+
+    /**
+     * Create or update salary configuration
+     * POST /api/attendance-payroll/salary-config
+     */
+    static async createSalaryConfig(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Validation errors',
+                    errors: errors.array()
+                });
+            }
+
+            const {
+                booking_id,
+                service_provider_id,
+                customer_id,
+                monthly_salary,
+                working_days_per_month = 26,
+                pf_percentage = 12.00,
+                pf_enabled = true,
+                effective_from_date
+            } = req.body;
+
+            // ✅ Verify provider is assigned to this booking
+            const assignment = await attendancePayrollQueries.verifyProviderAssignment(
+                service_provider_id,
+                booking_id,
+                customer_id
+            );
+
+            if (!assignment) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Cannot configure salary: Service provider is not assigned to this booking'
+                });
+            }
+
+            // Calculate per day salary
+            const per_day_salary = (monthly_salary / working_days_per_month).toFixed(2);
+
+            const configData = {
+                booking_id,
+                service_provider_id,
+                customer_id,
+                monthly_salary,
+                per_day_salary,
+                working_days_per_month,
+                pf_percentage,
+                pf_enabled,
+                effective_from_date,
+                created_by: req.user?.registration_id || customer_id
+            };
+
+            const result = await attendancePayrollQueries.upsertSalaryConfig(configData);
+
+            res.status(201).json({
+                success: true,
+                message: 'Salary configuration saved successfully',
+                data: {
+                    config_id: result.insertId,
+                    monthly_salary,
+                    per_day_salary,
+                    working_days_per_month,
+                    pf_percentage
+                }
+            });
+
+        } catch (error) {
+            console.error('Create salary config error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to save salary configuration',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Get salary configuration by booking ID
+     * GET /api/attendance-payroll/salary-config/:booking_id
+     */
+    static async getSalaryConfig(req, res) {
+        try {
+            const { booking_id } = req.params;
+
+            const config = await attendancePayrollQueries.getSalaryConfigByBooking(booking_id);
+
+            if (!config) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Salary configuration not found'
+                });
+            }
+
+            res.json({
+                success: true,
+                message: 'Salary configuration retrieved successfully',
+                data: config
+            });
+
+        } catch (error) {
+            console.error('Get salary config error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve salary configuration',
+                error: error.message
+            });
+        }
+    }
+
+    // ==========================================
+    // ATTENDANCE ROUTES (UPDATED WITH VALIDATION)
+    // ==========================================
+
+    /**
+     * Punch In - Customer marks service provider check-in (WITH VALIDATION)
+     * POST /api/attendance-payroll/punch-in
+     */
+    static async punchIn(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Validation errors',
+                    errors: errors.array()
+                });
+            }
+
+            const {
+                service_provider_id,
+                customer_id,
+                booking_id,
+                latitude,
+                longitude
+            } = req.body;
+
+            // Get current date and time
+            const attendance_date = new Date().toISOString().split('T')[0];
+            const check_in_time = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+            // Check if already punched in today
+            const existing = await attendancePayrollQueries.getAttendanceByDate(
+                service_provider_id, 
+                attendance_date
+            );
+
+            if (existing && existing.check_in_time) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Already punched in today',
+                    data: {
+                        check_in_time: existing.check_in_time,
+                        attendance_date: existing.attendance_date
+                    }
+                });
+            }
+
+            const attendanceData = {
+                service_provider_id,
+                customer_id,
+                booking_id,
+                attendance_date,
+                check_in_time,
+                check_in_latitude: latitude,
+                check_in_longitude: longitude,
+                created_by: customer_id
+            };
+
+            // ✅ punchIn now validates assignment internally
+            await attendancePayrollQueries.punchIn(attendanceData);
+
+            res.status(201).json({
+                success: true,
+                message: 'Punched in successfully',
+                data: {
+                    attendance_date,
+                    check_in_time,
+                    location: { latitude, longitude },
+                    service_provider_id,
+                    customer_id,
+                    booking_id
+                }
+            });
+
+        } catch (error) {
+            console.error('Punch in error:', error);
+            
+            // Handle specific validation error
+            if (error.message.includes('not assigned')) {
+                return res.status(403).json({
+                    success: false,
+                    message: error.message,
+                    error_code: 'PROVIDER_NOT_ASSIGNED'
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to punch in',
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * Punch Out - Customer marks service provider check-out (WITH VALIDATION)
+     * POST /api/attendance-payroll/punch-out
+     */
+    static async punchOut(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Validation errors',
+                    errors: errors.array()
+                });
+            }
+
+            const {
+                service_provider_id,
+                customer_id,
+                booking_id,
+                latitude,
+                longitude
+            } = req.body;
+
+            const attendance_date = new Date().toISOString().split('T')[0];
+            const check_out_time = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+            // Check if punched in
+            const existing = await attendancePayrollQueries.getAttendanceByDate(
+                service_provider_id, 
+                attendance_date
+            );
+
+            if (!existing || !existing.check_in_time) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No check-in record found for today. Please punch in first.'
+                });
+            }
+
+            if (existing.check_out_time) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Already punched out today',
+                    data: {
+                        check_out_time: existing.check_out_time
+                    }
+                });
+            }
+
+            const attendanceData = {
+                service_provider_id,
+                customer_id,
+                booking_id,
+                attendance_date,
+                check_out_time,
+                check_out_latitude: latitude,
+                check_out_longitude: longitude
+            };
+
+            // ✅ punchOut now validates assignment internally
+            await attendancePayrollQueries.punchOut(attendanceData);
+
+            // Calculate worked hours
+            const checkInTime = new Date(existing.check_in_time);
+            const checkOutTime = new Date(check_out_time);
+            const hours_worked = ((checkOutTime - checkInTime) / (1000 * 60 * 60)).toFixed(2);
+
+            res.json({
+                success: true,
+                message: 'Punched out successfully',
+                data: {
+                    attendance_date,
+                    check_in_time: existing.check_in_time,
+                    check_out_time,
+                    hours_worked,
+                    location: { latitude, longitude },
+                    service_provider_id,
+                    customer_id,
+                    booking_id
+                }
+            });
+
+        } catch (error) {
+            console.error('Punch out error:', error);
+            
+            // Handle specific validation error
+            if (error.message.includes('not assigned')) {
+                return res.status(403).json({
+                    success: false,
+                    message: error.message,
+                    error_code: 'PROVIDER_NOT_ASSIGNED'
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to punch out',
+                error: error.message
+            });
+        }
+    }
 
 }
 

@@ -3,15 +3,13 @@ const express = require('express');
 const router = express.Router();
 const AttendancePayrollController = require('../controller/attendancePayrollController');
 const { body, param, query } = require('express-validator');
-// Uncomment if you have authentication middleware
-// const auth = require('../middleware/auth');
 
 // ==========================================
-// VALIDATION RULES
+// VALIDATION RULES (MOVED TO TOP)
 // ==========================================
 
 const salaryConfigValidation = [
-    body('booking_id').isInt().withMessage('Booking ID must be an integer'),
+    body('booking_id').notEmpty().withMessage('Booking ID is required'),
     body('service_provider_id').isInt().withMessage('Service provider ID must be an integer'),
     body('customer_id').isInt().withMessage('Customer ID must be an integer'),
     body('monthly_salary').isFloat({ min: 0 }).withMessage('Monthly salary must be a positive number'),
@@ -24,13 +22,15 @@ const salaryConfigValidation = [
 const punchInValidation = [
     body('service_provider_id').isInt().withMessage('Service provider ID is required'),
     body('customer_id').isInt().withMessage('Customer ID is required'),
-    body('booking_id').isInt().withMessage('Booking ID is required'),
+    body('booking_id').notEmpty().withMessage('Booking ID is required'),
     body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude is required'),
     body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude is required')
 ];
 
 const punchOutValidation = [
     body('service_provider_id').isInt().withMessage('Service provider ID is required'),
+    body('customer_id').isInt().withMessage('Customer ID is required'),
+    body('booking_id').notEmpty().withMessage('Booking ID is required'),
     body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude is required'),
     body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude is required')
 ];
@@ -38,7 +38,7 @@ const punchOutValidation = [
 const manualAttendanceValidation = [
     body('service_provider_id').isInt().withMessage('Service provider ID is required'),
     body('customer_id').isInt().withMessage('Customer ID is required'),
-    body('booking_id').isInt().withMessage('Booking ID is required'),
+    body('booking_id').notEmpty().withMessage('Booking ID is required'),
     body('attendance_date').isISO8601().withMessage('Valid attendance date is required'),
     body('check_in_time').optional().matches(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/).withMessage('Check-in time must be in YYYY-MM-DD HH:MM:SS format'),
     body('check_out_time').optional().matches(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/).withMessage('Check-out time must be in YYYY-MM-DD HH:MM:SS format'),
@@ -56,7 +56,7 @@ const delayValidation = [
 const leaveApplicationValidation = [
     body('service_provider_id').isInt().withMessage('Service provider ID is required'),
     body('customer_id').isInt().withMessage('Customer ID is required'),
-    body('booking_id').isInt().withMessage('Booking ID is required'),
+    body('booking_id').notEmpty().withMessage('Booking ID is required'),
     body('leave_type').isIn(['SICK_LEAVE', 'CASUAL_LEAVE', 'EMERGENCY_LEAVE', 'UNPAID_LEAVE', 'PLANNED_LEAVE']).withMessage('Invalid leave type'),
     body('start_date').isISO8601().withMessage('Valid start date is required'),
     body('end_date').isISO8601().withMessage('Valid end date is required'),
@@ -83,6 +83,44 @@ const markPaidValidation = [
 ];
 
 // ==========================================
+// SERVICE PROVIDER ASSIGNMENT ROUTES
+// ==========================================
+
+/**
+ * @route   GET /api/attendance-payroll/assigned-providers/customer/:customer_id
+ * @desc    🎯 MAIN API - Get all service providers assigned to a customer (FOR CUSTOMER SCREEN)
+ * @access  Private (Customer)
+ */
+router.get('/assigned-providers/customer/:customer_id',
+    param('customer_id').isInt().withMessage('Customer ID must be an integer'),
+    AttendancePayrollController.getAssignedProvidersByCustomer
+);
+
+/**
+ * @route   GET /api/attendance-payroll/assigned-providers/booking/:booking_id
+ * @desc    Get all service providers assigned to a booking
+ * @access  Private (Customer/Admin)
+ */
+router.get('/assigned-providers/booking/:booking_id',
+    param('booking_id').notEmpty().withMessage('Booking ID is required'),
+    AttendancePayrollController.getAssignedProvidersByBooking
+);
+
+/**
+ * @route   POST /api/attendance-payroll/verify-assignment
+ * @desc    Verify if service provider is assigned to booking
+ * @access  Private
+ */
+router.post('/verify-assignment',
+    [
+        body('service_provider_id').isInt().withMessage('Service provider ID is required'),
+        body('booking_id').notEmpty().withMessage('Booking ID is required'),
+        body('customer_id').isInt().withMessage('Customer ID is required')
+    ],
+    AttendancePayrollController.verifyAssignment
+);
+
+// ==========================================
 // SALARY CONFIGURATION ROUTES
 // ==========================================
 
@@ -102,7 +140,7 @@ router.post('/salary-config',
  * @access  Private
  */
 router.get('/salary-config/:booking_id',
-    param('booking_id').isInt().withMessage('Booking ID must be an integer'),
+    param('booking_id').notEmpty().withMessage('Booking ID is required'),
     AttendancePayrollController.getSalaryConfig
 );
 
@@ -112,7 +150,7 @@ router.get('/salary-config/:booking_id',
 
 /**
  * @route   POST /api/attendance-payroll/punch-in
- * @desc    Customer marks service provider check-in with location
+ * @desc    🎯 Customer marks service provider check-in with location
  * @access  Private (Customer)
  */
 router.post('/punch-in',
@@ -122,7 +160,7 @@ router.post('/punch-in',
 
 /**
  * @route   POST /api/attendance-payroll/punch-out
- * @desc    Customer marks service provider check-out with location
+ * @desc    🎯 Customer marks service provider check-out with location
  * @access  Private (Customer)
  */
 router.post('/punch-out',
@@ -231,17 +269,77 @@ router.get('/pending-leaves/:customer_id',
 );
 
 // ==========================================
-// PAYROLL ROUTES
+// SCREEN-SPECIFIC ROUTES
 // ==========================================
 
 /**
- * @route   POST /api/attendance-payroll/generate-payroll
- * @desc    Generate monthly payroll for a service provider
- * @access  Private (Customer or Admin)
+ * @route   GET /api/attendance-payroll/leaves/all
+ * @desc    Get all leaves with filters - MANAGE LEAVE SCREEN
+ * @access  Private
  */
-router.post('/generate-payroll',
-    generatePayrollValidation,
-    AttendancePayrollController.generatePayroll
+router.get('/leaves/all',
+    [
+        query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']),
+        query('customer_id').optional().isInt(),
+        query('search').optional().isString()
+    ],
+    AttendancePayrollController.getAllLeaves
+);
+
+/**
+ * @route   GET /api/attendance-payroll/attendances/all
+ * @desc    Get all attendances with filters - MANAGE ATTENDANCE SCREEN
+ * @access  Private
+ */
+router.get('/attendances/all',
+    [
+        query('status').optional().isIn(['PRESENT', 'ABSENT', 'LATE', 'LEAVE', 'HALF_DAY']),
+        query('customer_id').optional().isInt(),
+        query('date').optional().isDate(),
+        query('month').optional().isInt({ min: 1, max: 12 }),
+        query('year').optional().isInt({ min: 2000, max: 2100 }),
+        query('search').optional().isString()
+    ],
+    AttendancePayrollController.getAllAttendances
+);
+
+// ==========================================
+// PAYROLL ROUTES - ROUTE ORDER MATTERS!
+// ==========================================
+
+/**
+ * @route   GET /api/attendance-payroll/payroll/all/details
+ * @desc    ⭐ Get ALL payroll records - SPECIFIC ROUTE FIRST
+ * @access  Private
+ */
+router.get('/payroll/all/details', 
+    AttendancePayrollController.getAllPayrollData
+);
+
+/**
+ * @route   GET /api/attendance-payroll/payrolls/all
+ * @desc    Get all payrolls with filters - MANAGE PAYROLL SCREEN - SPECIFIC ROUTE FIRST
+ * @access  Private
+ */
+router.get('/payrolls/all',
+    [
+        query('status').optional().isIn(['PAID', 'PENDING', 'ON-HOLD', 'CANCELLED']),
+        query('month').optional().isInt({ min: 1, max: 12 }),
+        query('year').optional().isInt({ min: 2000, max: 2100 }),
+        query('customer_id').optional().isInt(),
+        query('search').optional().isString()
+    ],
+    AttendancePayrollController.getAllPayrolls
+);
+
+/**
+ * @route   GET /api/attendance-payroll/payroll/:id/details
+ * @desc    Get complete payroll details - PAYROLL DETAILS SCREEN
+ * @access  Private
+ */
+router.get('/payroll/:id/details',
+    [param('id').isInt()],
+    AttendancePayrollController.getPayrollDetails
 );
 
 /**
@@ -254,15 +352,25 @@ router.get('/payroll/:payroll_id',
     AttendancePayrollController.getPayrollById
 );
 
-// /**
-//  * @route   GET /api/attendance-payroll/payrolls/:service_provider_id
-//  * @desc    Get all payrolls for a service provider
-//  * @access  Private (Service Provider)
-//  */
-// router.get('/payrolls/:service_provider_id',
-//     param('service_provider_id').isInt().withMessage('Service provider ID must be an integer'),
-//     AttendancePayrollController.getServiceProviderPayrolls
-// );
+/**
+ * @route   POST /api/attendance-payroll/generate-payroll
+ * @desc    Generate monthly payroll for a service provider
+ * @access  Private (Customer or Admin)
+ */
+router.post('/generate-payroll',
+    generatePayrollValidation,
+    AttendancePayrollController.generatePayroll
+);
+
+/**
+ * @route   GET /api/attendance-payroll/payrolls/:service_provider_id
+ * @desc    Get all payrolls for a service provider - PARAMETERIZED ROUTE AFTER SPECIFIC ROUTES
+ * @access  Private (Service Provider)
+ */
+router.get('/payrolls/:service_provider_id',
+    param('service_provider_id').isInt().withMessage('Service provider ID must be an integer'),
+    AttendancePayrollController.getServiceProviderPayrolls
+);
 
 /**
  * @route   GET /api/attendance-payroll/customer-payrolls/:customer_id
@@ -306,92 +414,6 @@ router.get('/dashboard/:customer_id',
     AttendancePayrollController.getPayrollDashboard
 );
 
-/**
- * @route   GET /api/attendance-payroll/leaves/all
- * @desc    Get all leaves with filters - MANAGE LEAVE SCREEN
- * @access  Private
- */
-router.get(
-    '/leaves/all',
-    [
-        query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']),
-        query('customer_id').optional().isInt(),
-        query('search').optional().isString()
-    ],
-    AttendancePayrollController.getAllLeaves
-);
-
-/**
- * @route   GET /api/attendance-payroll/attendances/all
- * @desc    Get all attendances with filters - MANAGE ATTENDANCE SCREEN
- * @access  Private
- */
-router.get(
-    '/attendances/all',
-    [
-        query('status').optional().isIn(['PRESENT', 'ABSENT', 'LATE', 'LEAVE', 'HALF_DAY']),
-        query('customer_id').optional().isInt(),
-        query('date').optional().isDate(),
-        query('month').optional().isInt({ min: 1, max: 12 }),
-        query('year').optional().isInt({ min: 2000, max: 2100 }),
-        query('search').optional().isString()
-    ],
-    AttendancePayrollController.getAllAttendances
-);
-
-// ==========================================
-// MOVE THIS UP (around line 240)
-// ==========================================
-
-/**
- * @route   GET /api/attendance-payroll/payrolls/all
- * @desc    Get all payrolls with filters - MANAGE PAYROLL SCREEN
- * @access  Private
- */
-router.get(
-    '/payrolls/all',  // ⬅️ Specific route MUST come first!
-    [
-        query('status').optional().isIn(['PAID', 'PENDING', 'ON-HOLD', 'CANCELLED']),
-        query('month').optional().isInt({ min: 1, max: 12 }),
-        query('year').optional().isInt({ min: 2000, max: 2100 }),
-        query('customer_id').optional().isInt(),
-        query('search').optional().isString()
-    ],
-    AttendancePayrollController.getAllPayrolls
-);
-
-/**
- * @route   GET /api/attendance-payroll/payroll/all/details
- * @desc    Get ALL payroll records with complete details from sp_payroll table
- * @access  Private
- * @returns All payroll records with employee, customer, salary, payment details + summary
- */
-router.get('/payroll/all/details', AttendancePayrollController.getAllPayrollData);
-
-
-/**
- * @route   GET /api/attendance-payroll/payrolls/:service_provider_id
- * @desc    Get all payrolls for a service provider
- * @access  Private (Service Provider)
- */
-router.get('/payrolls/:service_provider_id',  // ⬅️ Parameterized route comes after
-    param('service_provider_id').isInt().withMessage('Service provider ID must be an integer'),
-    AttendancePayrollController.getServiceProviderPayrolls
-);
-
-/**
- * @route   GET /api/attendance-payroll/payroll/:id/details
- * @desc    Get complete payroll details - PAYROLL DETAILS SCREEN
- * @access  Private
- */
-router.get(
-    '/payroll/:id/details',
-    [
-        param('id').isInt()
-    ],
-    AttendancePayrollController.getPayrollDetails
-);
-
 // ==========================================
 // EXPORT ROUTES
 // ==========================================
@@ -401,8 +423,7 @@ router.get(
  * @desc    Export all leaves data
  * @access  Private
  */
-router.get(
-    '/leaves/export',
+router.get('/leaves/export',
     AttendancePayrollController.exportLeaves
 );
 
@@ -411,8 +432,7 @@ router.get(
  * @desc    Export all attendances data
  * @access  Private
  */
-router.get(
-    '/attendances/export',
+router.get('/attendances/export',
     [
         query('month').optional().isInt({ min: 1, max: 12 }),
         query('year').optional().isInt({ min: 2000, max: 2100 })
@@ -425,8 +445,7 @@ router.get(
  * @desc    Export all payrolls data
  * @access  Private
  */
-router.get(
-    '/payrolls/export',
+router.get('/payrolls/export',
     [
         query('month').optional().isInt({ min: 1, max: 12 }),
         query('year').optional().isInt({ min: 2000, max: 2100 })
@@ -434,15 +453,9 @@ router.get(
     AttendancePayrollController.exportPayrolls
 );
 
-/**
- * @route   GET /api/attendance-payroll/payroll/1/details
- * @desc    Get ALL payroll records with complete details
- * @access  Private
- */
-// ✅ CORRECT - Use AttendancePayrollController which you already have
-router.get('/payroll/1/details', AttendancePayrollController.getAllPayrollData);
-
-
+// ==========================================
+// HEALTH CHECK
+// ==========================================
 
 /**
  * Health check endpoint
@@ -450,10 +463,10 @@ router.get('/payroll/1/details', AttendancePayrollController.getAllPayrollData);
 router.get('/health', (req, res) => {
     res.status(200).json({
         success: true,
-        message: 'Payroll API is running',
+        message: 'Attendance Payroll API is running',
+        version: '2.0 - With Provider Assignment Validation & Proper Route Ordering',
         timestamp: new Date().toISOString()
     });
 });
-
 
 module.exports = router;
