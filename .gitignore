@@ -1,0 +1,8 @@
+node_modules/
+uploads/
+*.zip
+*.sql
+*.tar
+*.tar.gz
+*.rar
+.env
