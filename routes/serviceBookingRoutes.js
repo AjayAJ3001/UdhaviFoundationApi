@@ -789,6 +789,18 @@ router.put(
   ServiceBookingController.updateBookingDetails
 );
 
+router.get(
+  "/provider/mobile/:mobile_number/interview-details",
+  ServiceBookingController.getInterviewDetailsByMobile
+);
+ 
+// 📌 Assigned Interview fetch using provider mobile
+router.get(
+  "/provider/mobile/:mobile_number/assigned-interview",
+  ServiceBookingController.getAssignedInterviewByMobile
+);
+ 
+
 
 
 module.exports = router;

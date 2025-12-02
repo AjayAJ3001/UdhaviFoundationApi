@@ -1204,11 +1204,123 @@ const getAssignedDetailsByProviderId = async (provider_id) => {
         throw error;
     }
 
+
+
+};
+
+const getAssignedInterviewByMobile = async (mobile_number) => {
+  try {
+    const query = `
+      SELECT
+        sb.id,
+        sb.booking_id,
+        sb.interview_status,
+        sb.service_start_date,
+        sb.service_start_time,
+        sb.service_end_time,
+ 
+        CASE
+          WHEN TIME(sb.service_start_time) BETWEEN '06:00:00' AND '11:59:59' THEN 'Morning'
+          WHEN TIME(sb.service_start_time) BETWEEN '12:00:00' AND '17:59:59' THEN 'Afternoon'
+          WHEN TIME(sb.service_start_time) BETWEEN '18:00:00' AND '21:59:59' THEN 'Evening'
+          ELSE 'Night'
+        END AS shift,
+ 
+        cust.full_name AS customer_name,
+        cust.mobile_number AS customer_mobile,
+ 
+        prov.full_name AS provider_name,
+        prov.mobile_number AS provider_mobile,
+ 
+        crm.name AS crm_name,
+        crm.phone AS crm_mobile
+ 
+      FROM service_bookings sb
+ 
+      JOIN account_information prov
+          ON sb.assigned_provider_id = prov.registration_id
+ 
+      LEFT JOIN account_information cust
+          ON sb.customer_id = cust.registration_id
+ 
+      LEFT JOIN crm_users crm
+          ON sb.assigned_crm_id = crm.id   -- FIXED JOIN
+ 
+      WHERE prov.mobile_number = ?
+      AND sb.interview_status = 'assigned'
+      ORDER BY sb.updated_at DESC
+    `;
+ 
+    const [rows] = await db.execute(query, [mobile_number]);
+    return rows;
+ 
+  } catch (error) {
+    console.error("❌ getAssignedInterviewByMobile query error:", error);
+    throw error;
+  }
+ 
+};
+ 
+ 
+const getInterviewDetailsByMobile = async (mobile_number) => {
+  try {
+    const query = `
+      SELECT
+          sb.id,
+          sb.booking_id,
+          sb.customer_id,
+          sb.service_id,
+          sb.assigned_provider_id,
+          sb.assigned_crm_id,
+          sb.interview_status,
+          sb.interview_date,
+          sb.interview_time,
+          sb.base_cost,
+          sb.tax_amount,
+          sb.discount_amount,
+          sb.total_amount,
+          sb.payment_status,
+          sb.payment_method,
+          sb.remarks,
+          sb.created_at,
+          sb.updated_at,
+ 
+          -- Provider Info
+          provider.full_name AS provider_name,
+          provider.mobile_number AS provider_mobile,
+ 
+          -- CRM User Info (JOIN CRM_USERS table)
+          crm.name AS crm_name,
+          crm.phone AS crm_mobile,
+ 
+          -- Service Name
+          st.name AS service_name
+ 
+      FROM service_bookings sb
+      JOIN account_information provider
+          ON sb.assigned_provider_id = provider.registration_id
+      LEFT JOIN crm_users crm
+          ON sb.assigned_crm_id = crm.id
+      LEFT JOIN service_types st
+          ON sb.service_id = st.service_id
+ 
+      WHERE provider.mobile_number = ?
+      ORDER BY sb.interview_date DESC, sb.interview_time DESC
+    `;
+ 
+    const [rows] = await db.execute(query, [mobile_number]);
+    return rows;
+ 
+  } catch (error) {
+    console.error("❌ getInterviewDetailsByMobile Query Error:", error);
+    throw error;
+  }
 };
 
 
-
 module.exports = {
+    getAssignedInterviewByMobile,
+    getInterviewDetailsByMobile,
     getActiveProviders,
     saveProviderServiceConfiguration,
     searchProvidersByFilters,

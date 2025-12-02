@@ -695,7 +695,18 @@ if (serviceBookingController) {
   app.get('/api/booking/search', serviceBookingController.searchBookings);
   app.get('/api/booking/stats', serviceBookingController.getBookingStats);
   
-
+// ✅ Interview details by provider mobile number
+app.get(
+  "/api/booking/provider/mobile/:mobile_number/interview-details",
+  serviceBookingController.getInterviewDetailsByMobile
+);
+ 
+// Assigned service details (service start date & time)
+app.get(
+  "/api/booking/provider/mobile/:mobile_number/assigned-interview",
+  serviceBookingController.getAssignedInterviewByMobile
+);
+ 
   // Provider Configuration Routes
   app.post('/api/booking/provider/save-service-config',
     uploadConfigs.serviceImage,

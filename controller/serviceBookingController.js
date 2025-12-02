@@ -5123,6 +5123,64 @@ static async updateBookingDetails(req, res) {
       error: error.message,
     });
   }
+
+
+}
+
+  static async getInterviewDetailsByMobile(req, res) {
+  try {
+    const { mobile_number } = req.params;
+ 
+    const rows = await serviceBookingQueries.getInterviewDetailsByMobile(mobile_number);
+ 
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No interview details found"
+      });
+    }
+ 
+    return res.status(200).json({
+      success: true,
+      message: "Interview details fetched successfully",
+      data: rows
+    });
+  } catch (error) {
+    console.error("Error fetching interview details:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+}
+ 
+// Controller
+static async getAssignedInterviewByMobile(req, res) {
+  try {
+    const { mobile_number } = req.params;
+    const rows = await serviceBookingQueries.getAssignedInterviewByMobile(mobile_number);
+ 
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No assigned interview details found"
+      });
+    }
+ 
+    return res.status(200).json({
+      success: true,
+      message: "Assigned interview details fetched successfully",
+      data: rows[0]   // ⭐ Return first row only
+    });
+ 
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message
+    });
+  }
 }
 
 
