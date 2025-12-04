@@ -1208,60 +1208,6 @@ const getAssignedDetailsByProviderId = async (provider_id) => {
 
 };
 
-const getAssignedInterviewByMobile = async (mobile_number) => {
-  try {
-    const query = `
-      SELECT
-        sb.id,
-        sb.booking_id,
-        sb.interview_status,
-        sb.service_start_date,
-        sb.service_start_time,
-        sb.service_end_time,
- 
-        CASE
-          WHEN TIME(sb.service_start_time) BETWEEN '06:00:00' AND '11:59:59' THEN 'Morning'
-          WHEN TIME(sb.service_start_time) BETWEEN '12:00:00' AND '17:59:59' THEN 'Afternoon'
-          WHEN TIME(sb.service_start_time) BETWEEN '18:00:00' AND '21:59:59' THEN 'Evening'
-          ELSE 'Night'
-        END AS shift,
- 
-        cust.full_name AS customer_name,
-        cust.mobile_number AS customer_mobile,
- 
-        prov.full_name AS provider_name,
-        prov.mobile_number AS provider_mobile,
- 
-        crm.name AS crm_name,
-        crm.phone AS crm_mobile
- 
-      FROM service_bookings sb
- 
-      JOIN account_information prov
-          ON sb.assigned_provider_id = prov.registration_id
- 
-      LEFT JOIN account_information cust
-          ON sb.customer_id = cust.registration_id
- 
-      LEFT JOIN crm_users crm
-          ON sb.assigned_crm_id = crm.id   -- FIXED JOIN
- 
-      WHERE prov.mobile_number = ?
-      AND sb.interview_status = 'assigned'
-      ORDER BY sb.updated_at DESC
-    `;
- 
-    const [rows] = await db.execute(query, [mobile_number]);
-    return rows;
- 
-  } catch (error) {
-    console.error("❌ getAssignedInterviewByMobile query error:", error);
-    throw error;
-  }
- 
-};
- 
- 
 const getInterviewDetailsByMobile = async (mobile_number) => {
   try {
     const query = `
@@ -1316,6 +1262,64 @@ const getInterviewDetailsByMobile = async (mobile_number) => {
     throw error;
   }
 };
+ 
+ 
+ 
+const getAssignedInterviewByMobile = async (mobile_number) => {
+  try {
+    const query = `
+      SELECT
+        sb.id,
+        sb.booking_id,
+        sb.interview_status,
+        sb.service_start_date,
+        sb.service_start_time,
+        sb.service_end_time,
+ 
+        CASE
+          WHEN TIME(sb.service_start_time) BETWEEN '06:00:00' AND '11:59:59' THEN 'Morning'
+          WHEN TIME(sb.service_start_time) BETWEEN '12:00:00' AND '17:59:59' THEN 'Afternoon'
+          WHEN TIME(sb.service_start_time) BETWEEN '18:00:00' AND '21:59:59' THEN 'Evening'
+          ELSE 'Night'
+        END AS shift,
+ 
+        cust.full_name AS customer_name,
+        cust.mobile_number AS customer_mobile,
+ 
+        prov.full_name AS provider_name,
+        prov.mobile_number AS provider_mobile,
+ 
+        crm.name AS crm_name,
+        crm.phone AS crm_mobile
+ 
+      FROM service_bookings sb
+ 
+      JOIN account_information prov
+          ON sb.assigned_provider_id = prov.registration_id
+ 
+      LEFT JOIN account_information cust
+          ON sb.customer_id = cust.registration_id
+ 
+      LEFT JOIN crm_users crm
+          ON sb.assigned_crm_id = crm.id   -- FIXED JOIN
+ 
+      WHERE prov.mobile_number = ?
+      AND sb.interview_status = 'assigned'
+      ORDER BY sb.updated_at DESC
+    `;
+ 
+    const [rows] = await db.execute(query, [mobile_number]);
+    return rows;
+ 
+  } catch (error) {
+    console.error("❌ getAssignedInterviewByMobile query error:", error);
+    throw error;
+  }
+ 
+};
+ 
+ 
+
 
 
 module.exports = {

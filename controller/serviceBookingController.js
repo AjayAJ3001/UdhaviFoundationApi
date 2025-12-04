@@ -5004,130 +5004,7 @@ static async getAssignedDetailsByProvider(req, res) {
         }
     }
 
-// ✅ controller: updateBookingDetails
-static async updateBookingDetails(req, res) {
-  try {
-    console.log("🟩 Incoming Payload from frontend:", req.body);
-
-    const {
-      booking_id,
-      booking_status,
-      crm_user_id,
-      provider_id,
-      payment_status,
-      notes,
-      pricing = {},
-    } = req.body;
-
-    // ✅ Validation: booking_id required
-    if (!booking_id) {
-      return res.status(400).json({
-        success: false,
-        message: "Booking ID is required",
-      });
-    }
-
-    // ✅ Normalize data
-    const crmId = crm_user_id ? parseInt(crm_user_id) : null;
-    const providerId = provider_id ? parseInt(provider_id) : null;
-    const status = booking_status ? booking_status.toLowerCase() : null;
-    const payment = payment_status || null;
-    const remarks = notes || null;
-
-    const base = Number(pricing.base) || 0;
-    const tax = Number(pricing.tax) || 0;
-    const discount = Number(pricing.discount) || 0;
-    const total = Number(pricing.total) || base + tax - discount;
-
-    const isNumericId = /^\d+$/.test(booking_id);
-
-    // ✅ Check if booking exists
-    const [existing] = await db.query(
-      `SELECT id, booking_id FROM service_bookings WHERE ${
-        isNumericId ? "id = ?" : "booking_id = ?"
-      }`,
-      [booking_id]
-    );
-
-    if (!existing.length) {
-      return res.status(404).json({
-        success: false,
-        message: "Booking not found",
-      });
-    }
-
-    const bookingKey = isNumericId ? existing[0].id : existing[0].booking_id;
-
-    // ✅ Update
-    const [updateResult] = await db.query(
-      `
-      UPDATE service_bookings
-      SET
-        booking_status = COALESCE(?, booking_status),
-        assigned_crm_id = COALESCE(?, assigned_crm_id),
-        assigned_provider_id = COALESCE(?, assigned_provider_id),
-        payment_status = COALESCE(?, payment_status),
-        remarks = COALESCE(?, remarks),
-        base_cost = ?,
-        tax_amount = ?,
-        discount_amount = ?,
-        total_amount = ?,
-        updated_at = NOW()
-      WHERE ${isNumericId ? "id = ?" : "booking_id = ?"}
-    `,
-      [status, crmId, providerId, payment, remarks, base, tax, discount, total, bookingKey]
-    );
-
-    if (updateResult.affectedRows === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No changes were applied",
-      });
-    }
-
-    // ✅ Return updated data
-    const [updated] = await db.query(
-      `
-      SELECT
-        sb.id,
-        sb.booking_id,
-        sb.booking_status,
-        sb.payment_status,
-        sb.total_amount,
-        sb.base_cost,
-        sb.tax_amount,
-        sb.discount_amount,
-        sb.remarks,
-        cu.name AS assigned_crm_name,
-        u.name AS assigned_provider_name
-      FROM service_bookings sb
-      LEFT JOIN crm_users cu ON sb.assigned_crm_id = cu.id
-      LEFT JOIN users u ON sb.assigned_provider_id = u.id
-      WHERE ${isNumericId ? "sb.id = ?" : "sb.booking_id = ?"}
-      `,
-      [bookingKey]
-    );
-
-    console.log("✅ Updated booking:", updated[0]);
-
-    res.status(200).json({
-      success: true,
-      message: "Booking updated successfully",
-      data: updated[0],
-    });
-  } catch (error) {
-    console.error("❌ Error in updateBookingDetails:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-      error: error.message,
-    });
-  }
-
-
-}
-
-  static async getInterviewDetailsByMobile(req, res) {
+static async getInterviewDetailsByMobile(req, res) {
   try {
     const { mobile_number } = req.params;
  
@@ -5181,7 +5058,123 @@ static async getAssignedInterviewByMobile(req, res) {
       error: error.message
     });
   }
+}static async updateBookingDetails(req, res) {
+  try {
+    console.log("🟩 Incoming Payload:", req.body);
+ 
+    const {
+      booking_id,
+      assigned_crm_id,
+      assigned_provider_id,
+      interview_status,
+      interview_date,
+      interview_time,
+      notes,
+      pricing = {},
+    } = req.body;
+ 
+    if (!booking_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking ID is required",
+      });
+    }
+ 
+    const crmId = assigned_crm_id ? Number(assigned_crm_id) : null;
+    const providerId = assigned_provider_id ? Number(assigned_provider_id) : null;
+ 
+    const base = Number(pricing.base_cost) || 0;
+    const tax = Number(pricing.tax_amount) || 0;
+    const discount = Number(pricing.discount_amount) || 0;
+    const total = Number(pricing.total_amount) || base + tax - discount;
+ 
+    const [existing] = await db.query(
+      `SELECT id FROM service_bookings WHERE booking_id = ? LIMIT 1`,
+      [booking_id]
+    );
+ 
+    if (!existing.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+ 
+    const bookingKey = existing[0].id;
+ 
+    // UPDATE
+    await db.query(
+      `
+      UPDATE service_bookings
+      SET
+        assigned_crm_id = COALESCE(?, assigned_crm_id),
+        assigned_provider_id = COALESCE(?, assigned_provider_id),
+        interview_status = COALESCE(?, interview_status),
+        interview_date = COALESCE(?, interview_date),
+        interview_time = COALESCE(?, interview_time),
+        remarks = ?,
+        base_cost = ?,
+        tax_amount = ?,
+        discount_amount = ?,
+        total_amount = ?,
+        updated_at = NOW()
+      WHERE id = ?
+      `,
+      [
+        crmId,
+        providerId,
+        interview_status,
+        interview_date,
+        interview_time,
+        notes,
+        base,
+        tax,
+        discount,
+        total,
+        bookingKey
+      ]
+    );
+ 
+    // FULL RESPONSE (MATCH GET API)
+    const [updated] = await db.query(
+      `
+      SELECT
+        sb.id, sb.booking_id, sb.booking_status,
+        sb.assigned_crm_id, sb.assigned_provider_id,
+        sb.interview_status, sb.interview_date, sb.interview_time,
+        sb.remarks, sb.created_at, sb.updated_at,
+        sb.base_cost, sb.tax_amount, sb.discount_amount, sb.total_amount,
+        cust.full_name AS customer_name, cust.mobile_number AS customer_mobile,
+        cust.email AS customer_email, sb.service_address AS customer_address,
+        prov.full_name AS provider_name, prov.mobile_number AS provider_mobile,
+        crm.name AS crm_user_name, crm.phone AS crm_user_mobile,
+        st.name AS service_name
+      FROM service_bookings sb
+      LEFT JOIN account_information cust ON sb.customer_id = cust.registration_id
+      LEFT JOIN account_information prov ON sb.assigned_provider_id = prov.registration_id
+      LEFT JOIN crm_users crm ON sb.assigned_crm_id = crm.id
+      LEFT JOIN service_types st ON sb.service_id = st.service_id
+      WHERE sb.id = ?
+      `,
+      [bookingKey]
+    );
+ 
+    return res.status(200).json({
+      success: true,
+      message: "Booking updated successfully",
+      data: updated[0],
+    });
+ 
+  } catch (error) {
+    console.error("❌ Error in updateBookingDetails:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
 }
+
 
 
 
