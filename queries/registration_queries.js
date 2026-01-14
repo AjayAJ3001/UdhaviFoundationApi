@@ -405,15 +405,25 @@ const updatePoliceVerificationStatus = `
 // ====== STEP 5: DOCUMENT UPLOADS QUERIES ======
 
 // Insert/Update document uploads
-const insertDocumentUploads = `
-  INSERT INTO document_uploads (
-    registration_id, resume_bio_data, driving_license, experience_certificates
-  ) VALUES (?, ?, ?, ?)
-  ON DUPLICATE KEY UPDATE
-    resume_bio_data = VALUES(resume_bio_data),
-    driving_license = VALUES(driving_license),
-    experience_certificates = VALUES(experience_certificates),
-    updated_at = CURRENT_TIMESTAMP
+const insertDocumentUploads = `INSERT INTO document_uploads (
+  registration_id,
+  id_proof_type_id_1,
+  proof_type_name_1,
+  upload_proof_1,
+  id_proof_type_id_2,
+  proof_type_name_2,
+  upload_proof_2,
+  driving_license
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+  id_proof_type_id_1 = VALUES(id_proof_type_id_1),
+  proof_type_name_1 = VALUES(proof_type_name_1),
+  upload_proof_1     = VALUES(upload_proof_1),
+  id_proof_type_id_2 = VALUES(id_proof_type_id_2),
+  proof_type_name_2 = VALUES(proof_type_name_2),
+  upload_proof_2     = VALUES(upload_proof_2),
+  driving_license    = VALUES(driving_license),
+  updated_at         = CURRENT_TIMESTAMP;
 `;
 
 // Get document uploads
@@ -720,6 +730,109 @@ const GET_BASIC_USER_DETAILS_BY_MOBILE = `
 `;
 
 
+const insertPersonalInfo1 = `
+  INSERT INTO personal_information (
+    registration_id, date_of_birth, gender_id, profile_photo, name,
+    languages_known
+  ) VALUES (?, ?, ?, ?, ?, ?)
+  ON DUPLICATE KEY UPDATE
+    date_of_birth = VALUES(date_of_birth),
+    gender_id = VALUES(gender_id),
+    profile_photo = VALUES(profile_photo),
+    name = VALUES(name),
+    languages_known = VALUES(languages_known),
+    updated_at = CURRENT_TIMESTAMP
+`;
+
+
+const getPersonalInfoStep1 = `
+  SELECT 
+    pi.personal_info_id,
+    pi.registration_id,
+    pi.name,
+    pi.date_of_birth,
+    pi.gender_id,
+    pi.profile_photo,
+    pi.languages_known,
+    g.gender_name
+  FROM personal_information pi
+  LEFT JOIN genders g 
+    ON pi.gender_id = g.gender_id
+  WHERE pi.registration_id = ?
+`;
+
+
+const getContactAddressStep1 = `
+  SELECT 
+    cad.current_address,
+    cad.permanent_address,
+    cad.city,
+    cad.state_id,
+    cad.pincode,
+    s.state_name
+  FROM contact_address_details AS cad
+  LEFT JOIN states AS s
+    ON cad.state_id = s.state_id
+  WHERE cad.registration_id = ?
+`;
+
+
+const getSalaryExpectationByRegistrationStep3 = `
+  SELECT expected_salary FROM salary_expectations 
+  WHERE registration_id = ?
+`;
+
+
+// Get service information with salary expectation
+const getServiceInfoStep3 = `
+  SELECT available_day_ids, time_slot_ids, years_of_experience, service_type_id FROM service_information 
+  WHERE registration_id = ?
+`;
+
+
+const getAccountInfoStep4 = `
+  SELECT 
+    full_name,
+    account_number,
+    ifsc_code,
+    cancelled_cheque_passbook
+  FROM account_information
+  WHERE registration_id = ?
+`;
+
+const setIdProofTypeId = `
+  UPDATE personal_information
+  SET
+    id_proof_type_id = ?,
+    id_proof_number  = ?
+  WHERE registration_id = ?
+`;
+
+
+const getIdProofTypeId= `SELECT 
+  id_proof_type_id,
+  proof_type_name
+FROM id_proof_types
+WHERE status = 'Active'
+  AND id_proof_type_id = ?
+ORDER BY proof_type_name;
+`;
+
+
+// Get personal information with related data
+const getPersonalInfoIdProof = `
+  SELECT 
+    pi.id_proof_type_id,
+    ipt.proof_type_name
+  FROM personal_information pi
+  LEFT JOIN id_proof_types ipt 
+    ON pi.id_proof_type_id = ipt.id_proof_type_id
+  WHERE pi.registration_id = ?
+`;
+
+
+
+
 
 // Export all queries
 module.exports = {
@@ -736,58 +849,67 @@ module.exports = {
   createOrUpdateRegistration,
   updateRegistrationSession,
   getFullRegistrationDetails,
-  
+
   // Session management (MODIFIED)
   createRegistrationSession,
   getRegistrationBySession,
   updateRegistrationStep,
   completeRegistration,
   updateRegistrationStatus,
-  
+
   // Personal Information (Step 1)
   insertPersonalInfo,
+  insertPersonalInfo1,
   getPersonalInfo,
-  
+  getPersonalInfoStep1,
+  setIdProofTypeId,
+  getPersonalInfoIdProof,
+
   // Contact & Address (Step 2)
   insertContactAddress,
   getContactAddress,
-  
+  getContactAddressStep1,
+
   // Service Information (Step 3) with Salary Expectation
   insertSalaryExpectation,
   insertServiceInfo,
   getServiceInfo,
+  getServiceInfoStep3,
   getSalaryExpectationByRegistration,
+  getSalaryExpectationByRegistrationStep3,
   updateSalaryStatus,
-  
+
   // Background Check (Step 4) with Status
   insertBackgroundCheck,
   getBackgroundCheck,
   updatePoliceVerificationStatus,
-  
+
   // Document Uploads (Step 5)
   insertDocumentUploads,
   getDocumentUploads,
   insertDocumentVerificationLog,
-  
+
   // Account Information (Step 6) - MODIFIED
   insertAccountInfo,
   getAccountInfo,
+  getAccountInfoStep4,
   checkEmailExists,
   checkEmailExistsSimple,
-  
+
   // Status tracking
   insertRegistrationStatusHistory,
   getRegistrationStatusHistory,
   getPendingVerifications,
-  
+
   // Complete data and utilities
   getCompleteRegistrationData,
   getRegistrationProgress,
-  
+
   // Dropdown queries
   getGenders,
   getNationalities,
   getIdProofTypes,
+  getIdProofTypeId,
   getAllStates,
   getCitiesByState,
   getDistrictsByState,

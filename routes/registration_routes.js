@@ -342,7 +342,7 @@ router.post('/step1/:sessionToken',
  *               preferred_location_id:
  *                 type: integer
  */
-router.post('/step2/:sessionToken', registrationController.saveContactAddress);
+router.post('/step5/:sessionToken', registrationController.saveContactAddress);
 
 // ====== STEP 3: SERVICE INFORMATION WITH SALARY EXPECTATION ======
 
@@ -368,7 +368,7 @@ router.post('/step3/:sessionToken',
  *     summary: Save background check (Step 4) - Police verification set to pending status
  *     tags: [Registration]
  */
-router.post('/step4/:sessionToken',
+router.post('/step6/:sessionToken',
   uploadConfigs.policeVerification,
   handleUploadError,
   registrationController.saveBackgroundCheck
@@ -383,7 +383,7 @@ router.post('/step4/:sessionToken',
  *     summary: Upload documents (Step 5) - All documents set to pending verification
  *     tags: [Registration]
  */
-router.post('/step5/:sessionToken',
+router.post('/step2/:sessionToken',
   uploadConfigs.multipleDocuments,
   handleUploadError,
   registrationController.saveDocumentUploads
@@ -399,7 +399,7 @@ router.post('/step5/:sessionToken',
  *     tags: [Registration]
  *     description: Mobile number is pre-filled from verified session, cannot be changed
  */
-router.post('/step6/:sessionToken',
+router.post('/step4/:sessionToken',
   uploadConfigs.bankDocument,
   handleUploadError,
   registrationController.saveAccountInfo
