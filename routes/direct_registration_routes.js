@@ -15,7 +15,7 @@ router.get('/status/:registrationId', directRegistrationController.getRegistrati
 router.get('/complete/:registrationId', directRegistrationController.getCompleteRegistration);
 
 
-router.get('/step-data/:registrationId/:step', directRegistrationController.getStepData);
+router.get('/step-data/:registrationId', directRegistrationController.getStepData);
 
 // ====== STEP 1: PERSONAL INFORMATION ======
 

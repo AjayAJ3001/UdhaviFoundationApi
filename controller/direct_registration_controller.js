@@ -193,8 +193,7 @@ class DirectRegistrationController {
   static async getStepData(req, res) {
 
     try {
-      const { registrationId, step } = req.params;
-
+      const { registrationId } = req.params;
 
       const [registrationCheck] = await db.execute(queries.checkRegistrationExists, [registrationId]);
       if (registrationCheck.length === 0) {
@@ -206,60 +205,56 @@ class DirectRegistrationController {
 
       let results;
 
-      switch (step) {
-        case '1':
-          const dataPersonInfo = await db.execute(queries.getPersonalInfoStep1, [registrationId]);
-          let dataPersonOfData = {}
-          if (dataPersonInfo[0].length > 0) {
-            dataPersonOfData = dataPersonInfo[0][0]
-          }
-
-          const getContactAddressData = await db.execute(queries.getContactAddressStep1, [registrationId]);
-          let dataContactAddressData = {}
-          if (getContactAddressData[0].length > 0) {
-            dataContactAddressData = getContactAddressData[0][0]
-          }
-
-          results = { ...dataPersonOfData, ...dataContactAddressData };
-          break;
-        case '2':
-          const dataUploadDocument = await db.execute(queries.getDocumentUploads, [registrationId]);
-          if (dataUploadDocument[0].length > 0) {
-            results = dataUploadDocument[0][0]
-          }
-          break;
-        case '3':
-          const getSalaryExpectationByRegistrationData = await db.execute(queries.getSalaryExpectationByRegistrationStep3, [registrationId]);
-
-          let dataSalaryExpectationByRegistration = {}
-          if (getSalaryExpectationByRegistrationData[0].length > 0) {
-            dataSalaryExpectationByRegistration = getSalaryExpectationByRegistrationData[0][0]
-          }
-
-          const getServiceInfoStep3Data = await db.execute(queries.getServiceInfoStep3, [registrationId]);
-
-          let dataServiceInfoStep3 = {}
-          if (getServiceInfoStep3Data[0].length > 0) {
-            dataServiceInfoStep3 = getServiceInfoStep3Data[0][0]
-          }
-
-          results = { ...dataSalaryExpectationByRegistration, ...dataServiceInfoStep3 };
-          break;
-        case '4':
-          const dataAccountInfoStep4 = await db.execute(queries.getAccountInfoStep4, [registrationId]);
-          if (dataAccountInfoStep4[0].length > 0) {
-            results = dataAccountInfoStep4[0][0]
-          }
-          break;
-        default:
-          return res.status(400).json({
-            success: false,
-            error: { message: 'Invalid step number' }
-          });
+      const dataPersonInfo = await db.execute(queries.getPersonalInfoStep1, [registrationId]);
+      let dataPersonOfData = {}
+      if (dataPersonInfo[0].length > 0) {
+        dataPersonOfData = dataPersonInfo[0][0]
       }
 
+      const getContactAddressData = await db.execute(queries.getContactAddressStep1, [registrationId]);
+      let dataContactAddressData = {}
+      if (getContactAddressData[0].length > 0) {
+        dataContactAddressData = getContactAddressData[0][0]
+      }
 
-      res.json({
+      const getDocumentUploads = await db.execute(queries.getDocumentUploads, [registrationId]);
+      let dataDocumentUploads = {}
+      if (getDocumentUploads[0].length > 0) {
+        dataDocumentUploads = getDocumentUploads[0][0]
+      }
+
+      const getSalaryExpectationByRegistrationData = await db.execute(queries.getSalaryExpectationByRegistrationStep3, [registrationId]);
+
+      let dataSalaryExpectationByRegistration = {}
+      if (getSalaryExpectationByRegistrationData[0].length > 0) {
+        dataSalaryExpectationByRegistration = getSalaryExpectationByRegistrationData[0][0]
+      }
+
+      const getServiceInfoStep3Data = await db.execute(queries.getServiceInfoStep3, [registrationId]);
+
+      let dataServiceInfoStep3 = {}
+      if (getServiceInfoStep3Data[0].length > 0) {
+        dataServiceInfoStep3 = getServiceInfoStep3Data[0][0]
+      }
+
+      const getAccountInfoData = await db.execute(queries.getAccountInfoStep4, [registrationId]);
+      let getAccountData
+      if (getAccountInfoData[0].length > 0) {
+        getAccountData = getAccountInfoData[0][0]
+      }
+
+      const emptyObjectToNull = (obj) => {
+        return obj && Object.keys(obj).length === 0 ? null : obj;
+      }
+
+      results = {
+        personal_information: emptyObjectToNull({ ...dataPersonOfData, ...dataContactAddressData }),
+        upload_document: emptyObjectToNull({ ...dataDocumentUploads }),
+        service_info: emptyObjectToNull({ ...dataSalaryExpectationByRegistration, ...dataServiceInfoStep3 }),
+        accountData: emptyObjectToNull(getAccountData) || null
+      };
+
+      res.status(200).json({
         success: true,
         data: results || null
       });

@@ -524,7 +524,7 @@ class RegistrationController {
     static async getStepData(req, res) {
 
         try {
-            const { sessionToken, step } = req.params;
+            const { sessionToken } = req.params;
 
             const [sessionResults] = await db.execute(queries.getRegistrationBySession, [sessionToken]);
             if (sessionResults.length === 0) {
@@ -1753,7 +1753,6 @@ class RegistrationController {
 
     static async saveAccountInfo(req, res) {
         const connection = await db.getConnection();
-        console.log("737737");
 
         try {
             await connection.beginTransaction();
