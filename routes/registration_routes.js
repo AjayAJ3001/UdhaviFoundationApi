@@ -250,7 +250,7 @@ router.get('/complete/:sessionToken', registrationController.getCompleteRegistra
  *       200:
  *         description: Step data retrieved successfully
  */
-router.get('/step-data/:sessionToken/:step', registrationController.getStepData);
+router.get('/step-data/:sessionToken', registrationController.getStepData);
 
 // ====== STEP 1: PERSONAL INFORMATION ======
 

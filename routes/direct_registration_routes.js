@@ -28,7 +28,7 @@ router.post('/step1/:registrationId',
 
 // ====== STEP 2: CONTACT & ADDRESS WITH GEOCODING ======
 
-router.post('/step2/:registrationId', directRegistrationController.saveContactAddress);
+router.post('/step5/:registrationId', directRegistrationController.saveContactAddress);
 
 // ====== STEP 3: SERVICE INFORMATION WITH SALARY EXPECTATION ======
 
@@ -42,7 +42,7 @@ router.post('/step3/:registrationId',
 // ====== STEP 4: BACKGROUND & REFERENCE CHECK WITH STATUS ======
 
 
-router.post('/step4/:registrationId',
+router.post('/step6/:registrationId',
   uploadConfigs.policeVerification,
   handleUploadError,
   directRegistrationController.saveBackgroundCheck
@@ -51,7 +51,7 @@ router.post('/step4/:registrationId',
 // ====== STEP 5: DOCUMENT UPLOADS WITH VERIFICATION STATUS ======
 
 
-router.post('/step5/:registrationId',
+router.post('/step2/:registrationId',
   uploadConfigs.multipleDocuments,
   handleUploadError,
   directRegistrationController.saveDocumentUploads
@@ -60,7 +60,7 @@ router.post('/step5/:registrationId',
 // ====== STEP 6: ACCOUNT INFORMATION - FINAL SUBMISSION ======
 
 
-router.post('/step6/:registrationId',
+router.post('/step4/:registrationId',
   uploadConfigs.bankDocument,
   handleUploadError,
   directRegistrationController.saveAccountInfo

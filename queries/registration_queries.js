@@ -214,39 +214,36 @@ const getPersonalInfo = `
 // ====== STEP 2: CONTACT & ADDRESS QUERIES ======
 
 const insertContactAddress = `
-  INSERT INTO contact_address_details (
-    registration_id,
-    current_address,
-    permanent_address,
-    city,
-    state_id,
-    pincode,
-    preferred_location_id,
-    current_latitude,
-    current_longitude,
-    permanent_latitude,
-    permanent_longitude,
-    location_accuracy,
-    location_verified,
-    geocoding_status,
-    location_updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', 1, 'success', CURRENT_TIMESTAMP)
-  ON DUPLICATE KEY UPDATE
-    current_address = VALUES(current_address),
-    permanent_address = VALUES(permanent_address),
-    city = VALUES(city),
-    state_id = VALUES(state_id),
-    pincode = VALUES(pincode),
-    preferred_location_id = VALUES(preferred_location_id),
-    current_latitude = VALUES(current_latitude),
-    current_longitude = VALUES(current_longitude),
-    permanent_latitude = VALUES(permanent_latitude),
-    permanent_longitude = VALUES(permanent_longitude),
-    location_accuracy = 'manual',
-    location_verified = 1,
-    geocoding_status = 'success',
-    location_updated_at = CURRENT_TIMESTAMP,
-    updated_at = CURRENT_TIMESTAMP
+INSERT INTO contact_address_details (
+  registration_id,
+  current_address,
+  permanent_address,
+  city_id,
+  state_id,
+  pincode,
+  location_accuracy,
+  location_verified,
+  geocoding_status,
+  created_at,
+  updated_at
+) VALUES (
+  ?, ?, ?, ?, ?, ?,
+  'manual',
+  1,
+  'success',
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+)
+ON DUPLICATE KEY UPDATE
+  current_address = VALUES(current_address),
+  permanent_address = VALUES(permanent_address),
+  city_id = VALUES(city_id),
+  state_id = VALUES(state_id),
+  pincode = VALUES(pincode),
+  location_accuracy = 'manual',
+  location_verified = 1,
+  geocoding_status = 'success',
+  updated_at = CURRENT_TIMESTAMP;
 `;
 
 // ✅ Get contact and address details
@@ -762,18 +759,20 @@ const getPersonalInfoStep1 = `
 `;
 
 
-const getContactAddressStep1 = `
-  SELECT 
-    cad.current_address,
-    cad.permanent_address,
-    cad.city,
-    cad.state_id,
-    cad.pincode,
-    s.state_name
-  FROM contact_address_details AS cad
-  LEFT JOIN states AS s
-    ON cad.state_id = s.state_id
-  WHERE cad.registration_id = ?
+const getContactAddressStep1 = `SELECT 
+  cad.current_address,
+  cad.permanent_address,
+  cad.city_id,
+  cad.state_id,
+  cad.pincode,
+  s.state_name,
+  c.city_name
+FROM contact_address_details AS cad
+LEFT JOIN states AS s
+  ON cad.state_id = s.state_id
+LEFT JOIN cities AS c
+  ON cad.city_id = c.city_id
+WHERE cad.registration_id = ?;
 `;
 
 

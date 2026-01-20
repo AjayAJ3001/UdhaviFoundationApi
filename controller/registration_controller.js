@@ -537,62 +537,56 @@ class RegistrationController {
             const registrationId = sessionResults[0].registration_id;
             let results;
 
-            switch (step) {
-                case '1':
-                    const dataPersonInfo = await db.execute(queries.getPersonalInfoStep1, [registrationId]);
-                    let dataPersonOfData = {}
-                    if (dataPersonInfo[0].length > 0) {
-                        dataPersonOfData = dataPersonInfo[0][0]
-                    }
-
-                    const getContactAddressData = await db.execute(queries.getContactAddressStep1, [registrationId]);
-                    let dataContactAddressData = {}
-                    if (getContactAddressData[0].length > 0) {
-                        dataContactAddressData = getContactAddressData[0][0]
-                    }
-
-                    results = { ...dataPersonOfData, ...dataContactAddressData };
-                    break;
-                case '2':
-                    const getDocumentUploads = await db.execute(queries.getDocumentUploads, [registrationId]);
-                    let dataDocumentUploads = {}
-                    if (getDocumentUploads[0].length > 0) {
-                     results = dataDocumentUploads = getDocumentUploads[0][0]
-                    }
-                    break;
-                case '3':
-                    const getSalaryExpectationByRegistrationData = await db.execute(queries.getSalaryExpectationByRegistrationStep3, [registrationId]);
-
-                    let dataSalaryExpectationByRegistration = {}
-                    if (getSalaryExpectationByRegistrationData[0].length > 0) {
-                        dataSalaryExpectationByRegistration = getSalaryExpectationByRegistrationData[0][0]
-                    }
-
-                    const getServiceInfoStep3Data = await db.execute(queries.getServiceInfoStep3, [registrationId]);
-
-                    let dataServiceInfoStep3 = {}
-                    if (getServiceInfoStep3Data[0].length > 0) {
-                        dataServiceInfoStep3 = getServiceInfoStep3Data[0][0]
-                    }
-
-                    results = { ...dataSalaryExpectationByRegistration, ...dataServiceInfoStep3 };
-                    break;
-                case '4':
-                    const getAccountInfoData = await db.execute(queries.getAccountInfoStep4, [registrationId]);
-                    
-                    if (getAccountInfoData[0].length > 0) {
-                        results = getAccountInfoData[0][0]
-                    }
-                    break;
-                default:
-                    return res.status(400).json({
-                        success: false,
-                        error: { message: 'Invalid step number' }
-                    });
+            const dataPersonInfo = await db.execute(queries.getPersonalInfoStep1, [registrationId]);
+            let dataPersonOfData = {}
+            if (dataPersonInfo[0].length > 0) {
+                dataPersonOfData = dataPersonInfo[0][0]
             }
 
+            const getContactAddressData = await db.execute(queries.getContactAddressStep1, [registrationId]);
+            let dataContactAddressData = {}
+            if (getContactAddressData[0].length > 0) {
+                dataContactAddressData = getContactAddressData[0][0]
+            }
 
-            res.json({
+            const getDocumentUploads = await db.execute(queries.getDocumentUploads, [registrationId]);
+            let dataDocumentUploads = {}
+            if (getDocumentUploads[0].length > 0) {
+                dataDocumentUploads = getDocumentUploads[0][0]
+            }
+
+            const getSalaryExpectationByRegistrationData = await db.execute(queries.getSalaryExpectationByRegistrationStep3, [registrationId]);
+
+            let dataSalaryExpectationByRegistration = {}
+            if (getSalaryExpectationByRegistrationData[0].length > 0) {
+                dataSalaryExpectationByRegistration = getSalaryExpectationByRegistrationData[0][0]
+            }
+
+            const getServiceInfoStep3Data = await db.execute(queries.getServiceInfoStep3, [registrationId]);
+
+            let dataServiceInfoStep3 = {}
+            if (getServiceInfoStep3Data[0].length > 0) {
+                dataServiceInfoStep3 = getServiceInfoStep3Data[0][0]
+            }
+
+            const getAccountInfoData = await db.execute(queries.getAccountInfoStep4, [registrationId]);
+            let getAccountData
+            if (getAccountInfoData[0].length > 0) {
+                getAccountData = getAccountInfoData[0][0]
+            }
+
+            const emptyObjectToNull = (obj) => {
+                return obj && Object.keys(obj).length === 0 ? null : obj;
+            }
+
+            results = {
+                personal_information: emptyObjectToNull({ ...dataPersonOfData, ...dataContactAddressData }),
+                upload_document: emptyObjectToNull({ ...dataDocumentUploads }),
+                service_info: emptyObjectToNull({ ...dataSalaryExpectationByRegistration, ...dataServiceInfoStep3 }),
+                accountData: emptyObjectToNull(getAccountData) || null
+            };
+
+            res.status(200).json({
                 success: true,
                 data: results || null
             });
@@ -721,7 +715,7 @@ class RegistrationController {
                 current_address,
                 permanent_address,
                 languages_known,
-                city,
+                city_id,
                 state_id,
                 pincode,
             } = req.body;
@@ -750,8 +744,8 @@ class RegistrationController {
                 );
 
             await db.execute(queries.insertPersonalInfo1, cleanData({
-                registrationId, date_of_birth, gender_id, profile_photo, 
-                languages_known, name, 
+                registrationId, date_of_birth, gender_id, profile_photo,
+                languages_known, name,
             }));
 
             const dataPersonInfo = await db.execute(queries.getPersonalInfoStep1, [registrationId]);
@@ -762,8 +756,7 @@ class RegistrationController {
 
             await db.execute(queries.insertContactAddress,
                 cleanData({
-                    registrationId, current_address, permanent_address, city, state_id, pincode, preferred_location_id: null,
-                    current_latitude: null, current_longitude: null, permanent_latitude: null, permanent_longitude: null
+                    registrationId, current_address, permanent_address, city_id, state_id, pincode
                 }));
 
             const getContactAddressData = await db.execute(queries.getContactAddressStep1, [registrationId]);
@@ -1761,7 +1754,7 @@ class RegistrationController {
     static async saveAccountInfo(req, res) {
         const connection = await db.getConnection();
         console.log("737737");
-        
+
         try {
             await connection.beginTransaction();
             const { sessionToken } = req.params;
