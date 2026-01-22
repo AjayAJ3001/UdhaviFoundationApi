@@ -115,12 +115,13 @@ router.put("/users/:registration_id/toggle-status", directRegistrationController
 router.put("/:id/personal", uploadConfigs.multipleDocuments, directRegistrationController.updatePersonal);
  
 // Step 2 - Contact Info
-router.put("/:id/contact", directRegistrationController.updateContact);
+router.put("/:id/documents",
+  uploadConfigs.multipleDocuments, 
+  directRegistrationController.updateUploadDocuments);
  
 // Step 3 - Service Info (service image)
 router.put(
   "/:id/service",
-  uploadConfigs.serviceImage,     // multer single("service_image")
   directRegistrationController.updateService    // controller
 );
  

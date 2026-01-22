@@ -259,6 +259,15 @@ const insertSalaryExpectation = `
     updated_at = CURRENT_TIMESTAMP
 `;
 
+const updateSalaryExpectation = `
+  UPDATE salary_expectations
+  SET expected_salary = ?,
+      salary_type = ?,
+      currency_code = ?, 
+      updated_at = NOW()
+  WHERE registration_id = ?;
+`;
+
 // Insert or update service info
 
 const insertServiceInfo = `
@@ -485,6 +494,14 @@ const checkMobileExistsSimple = `
   WHERE mobile_number = ?
 `;
 
+// Check if mobile exists (for new registrations)
+const checkMobileExistsNotEqual = `
+SELECT 1
+FROM account_information
+WHERE registration_id = ?
+  AND NOT (mobile_number <=> ?);
+`;
+
 // ====== STATUS TRACKING QUERIES ======
 
 // Insert registration status history
@@ -696,7 +713,7 @@ GROUP BY
     brc.police_verification_status, si.handle_by,
     cu.name, ur.registration_status;
 `;
- 
+
 const getSingleUsers = `
 SELECT
     COALESCE(CONCAT(pi.first_name, ' ', pi.last_name), ai.full_name) AS name,
@@ -727,43 +744,36 @@ GROUP BY
     name, ai.mobile_number, brc.police_verification_status,
     si.handle_by, cu.name, ur.registration_status;
 `;
- 
+
 const updateAccountInfo = `
-UPDATE account_information ai
-JOIN service_information si
-    ON ai.registration_id = si.registration_id
-JOIN background_reference_check brc
-    ON ai.registration_id = brc.registration_id
-JOIN personal_information pi
-    ON ai.registration_id = pi.registration_id
+UPDATE account_information 
 SET
-    pi.first_name = ?,
-    pi.last_name = ?,
-    ai.mobile_number = ?,
-    si.service_type_id = ?,
-    brc.police_verification_status = ?,
-    si.handle_by = ?
-WHERE ai.registration_id = ?;
+   mobile_number = ?,
+   bank_account_holder_name = ?,
+   account_number = ?,
+   ifsc_code = ?,
+   cancelled_cheque_passbook = ?
+WHERE registration_id = ?;
 `;
- 
+
 const updateServiceInfo = `
 UPDATE service_information
 SET service_description = ?
 WHERE registration_id = ?;
 `;
- 
+
 const assignCRMUser = `
   UPDATE service_information
   SET handle_by = ?
   WHERE registration_id = ?;
 `;
- 
+
 const updateStatus = `
 UPDATE user_registrations
 SET registration_status = ?
 WHERE registration_id = ?;
 `;
- 
+
 const getPoliceStatus = `
 SELECT
     ur.registration_id,
@@ -779,14 +789,14 @@ LEFT JOIN background_reference_check brc
 WHERE ur.current_step = 6
   AND ur.is_completed = 1;
 `;
- 
+
 const updatesPoliceVerification = `
   UPDATE background_reference_check
   SET police_verification_status = ?
   WHERE registration_id = ?;
 `;
- 
- 
+
+
 const getCRMUsers = `
 SELECT id AS handleById, name AS handleByName
 FROM crm_users;
@@ -810,7 +820,7 @@ SET
     si.handle_by = ?
 WHERE ai.registration_id = ?;
 `;
- 
+
 const toggleStatus = `
 UPDATE user_registrations
 SET registration_status = CASE
@@ -819,7 +829,7 @@ SET registration_status = CASE
 END
 WHERE registration_id = ?;
 `;
- 
+
 const getStatus = `
 SELECT CASE
     WHEN registration_status = 'approved' THEN 'active'
@@ -830,27 +840,43 @@ WHERE registration_id = ?;
 `;
 
 
- 
+
 // ---------- STEP 1: Personal ----------
 const updatePersonalInfo = `
   UPDATE personal_information
-  SET date_of_birth = ?, gender_id = ?, nationality_id = ?, languages_known = ?,
-      id_proof_type_id = ?, id_proof_number = ?, updated_at = NOW()
-  WHERE registration_id = ?;
-`;
- 
-const updatePersonalFiles = `
-  UPDATE personal_information
-  SET profile_photo = COALESCE(?, profile_photo),
-      id_proof_document = COALESCE(?, id_proof_document),
+  SET name = ?, date_of_birth = ?, gender_id = ?, languages_known = ?,
+   profile_photo = COALESCE(?, profile_photo),
       updated_at = NOW()
   WHERE registration_id = ?;
 `;
- 
+
+const updatePersonalFiles = `
+  UPDATE personal_information
+  SET profile_photo = COALESCE(?, profile_photo),
+      updated_at = NOW()
+  WHERE registration_id = ?;
+`;
+
+
+//-------------update step2 ----------
+const UpdateDocumentUploads = `
+  UPDATE document_uploads
+  SET 
+  id_proof_type_id_1 = ?, 
+  proof_type_name_1= ?, 
+  upload_proof_1= COALESCE(?, upload_proof_1), 
+  id_proof_type_id_2= ?, 
+  proof_type_name_2= ?, 
+  upload_proof_2= COALESCE(?, upload_proof_2), 
+  driving_license= COALESCE(?, driving_license), 
+  updated_at = NOW()
+  WHERE registration_id = ?;
+`;
+
 const getGenderById = `SELECT gender_name FROM genders WHERE gender_id = ?;`;
 const getNationalityById = `SELECT nationality_name FROM nationalities WHERE nationality_id = ?;`;
 const getIdProofTypeById = `SELECT proof_type_name FROM id_proof_types WHERE id_proof_type_id = ?;`;
- 
+
 // ---------- STEP 2: Contact ----------
 //Step 2: Contact & Address
 const checkContactExists = `
@@ -863,18 +889,13 @@ const updateContactInfo = `
   SET
     current_address = ?,
     permanent_address = ?,
-    city = ?,
     state_id = ?,
+    city_id = ?,
     pincode = ?,
-    preferred_location_id = ?,
-    current_latitude = ?,
-    current_longitude = ?,
-    permanent_latitude = ?,
-    permanent_longitude = ?,
     updated_at = NOW()
   WHERE registration_id = ?;
 `;
- 
+
 // Insert new contact info
 const insertContactInfo = `
   INSERT INTO contact_address_details (
@@ -893,29 +914,26 @@ const insertContactInfo = `
     updated_at
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW());
 `;
- 
- 
+
+
 const getStateById = `SELECT state_name FROM states WHERE state_id = ?;`;
 const getPreferredLocationById = `SELECT location_name FROM preferred_locations WHERE location_id = ?;`;
- 
+
 // ---------- STEP 3: Service ----------
 const updatesServiceInfo = `
   UPDATE service_information
   SET service_type_id = ?,
-      work_type_id = ?,
       years_of_experience = ?,
       expected_salary = ?,
-      service_image = COALESCE(?, service_image),
       available_day_ids = ?,
       time_slot_ids = ?,
-      service_description = COALESCE(?, service_description),
       updated_at = NOW()
   WHERE registration_id = ?;
 `;
- 
+
 const getServiceNameById = `SELECT name FROM service_types WHERE service_id = ?;`;
 const getWorkTypeNameById = `SELECT work_type_name FROM work_types WHERE work_type_id = ?;`;
- 
+
 // ---------- STEP 4: Background ----------
 const updateBackgroundCheck = `
   INSERT INTO background_reference_check (
@@ -941,7 +959,7 @@ const updateBackgroundCheck = `
     reference2_relation_id = VALUES(reference2_relation_id),
     updated_at = NOW();
 `;
- 
+
 // ---------- STEP 5: Documents ----------
 const updateDocuments = `
   INSERT INTO document_uploads (
@@ -958,8 +976,8 @@ const updateDocuments = `
     experience_certificates = VALUES(experience_certificates),
     updated_at = NOW();
 `;
- 
- 
+
+
 // ---------- STEP 6: Account ----------
 const updatesAccountInfo = `
   UPDATE account_information
@@ -969,7 +987,7 @@ const updatesAccountInfo = `
       updated_at = NOW()
   WHERE registration_id = ?;
 `;
- 
+
 // ---------- GET ALL USERS ----------
 const getAllUsers = `
   SELECT 
@@ -992,7 +1010,7 @@ const getAllUsers = `
   LEFT JOIN background_reference_check brc ON brc.registration_id = ur.registration_id
   LEFT JOIN crm_users cu ON cu.id = ur.crm_id;
 `;
- 
+
 // ---------- GET USER BY ID ----------
 const getUserById = `
 SELECT 
@@ -1304,7 +1322,7 @@ const getAllGenders = `
   SELECT gender_id, gender_name FROM genders WHERE status = 'Active' ORDER BY gender_name ASC;
 `;
 
-const getIdProofTypeId= `SELECT 
+const getIdProofTypeId = `SELECT 
   id_proof_type_id,
   proof_type_name
 FROM id_proof_types
@@ -1320,14 +1338,14 @@ const getServiceInfoStep3 = `
 `;
 
 
- 
+
 module.exports = {
-updatePersonalInfo,
+  updatePersonalInfo,
   updatePersonalFiles,
   getGenderById,
   getNationalityById,
   getIdProofTypeById,
- 
+
   updateContactInfo,
   checkContactExists,
   insertContactInfo,
@@ -1341,66 +1359,67 @@ updatePersonalInfo,
   getIdProofTypeId,
   getAccountInfoStep4,
   updateBackgroundCheck,
- 
   updateDocuments,
- 
-  updatesAccountInfo,
- 
-  getAllUsers,
-  getUserById, 
 
- // Registration management
+  updatesAccountInfo,
+
+  getAllUsers,
+  getUserById,
+
+  // Registration management
   createDirectRegistration,
   checkRegistrationExists,
   updateRegistrationStep,
   completeRegistration,
   updateRegistrationStatus,
- 
- updateUserDetails,
- toggleStatus,
- getStatus,
- 
+
+  updateUserDetails,
+  toggleStatus,
+  getStatus,
+
   // Personal Information (Step 1)
   insertPersonalInfo,
   getPersonalInfo,
   getContactAddressStep1,
   getPersonalInfoStep1,
-  
+
   // Contact & Address (Step 2) WITH GEOCODING
   insertContactAddress,
   getContactAddress,
-  
+
   // Service Information (Step 3) with Salary Expectation
   insertSalaryExpectation,
   insertServiceInfo,
   getServiceInfo,
   getSalaryExpectationByRegistration,
   updateSalaryStatus,
-  
+  updateSalaryExpectation,
   // Background Check (Step 4) with Status
   insertBackgroundCheck,
   getBackgroundCheck,
   updatePoliceVerificationStatus,
-  
+
   // Document Uploads (Step 5)
   insertDocumentUploads,
   getDocumentUploads,
+  UpdateDocumentUploads,
   insertDocumentVerificationLog,
-  
+
   // Account Information (Step 6)
   insertAccountInfo,
   getAccountInfo,
   checkEmailExistsSimple,
   checkMobileExistsSimple,
-  
+  checkMobileExistsNotEqual,
+
   // Status tracking
   insertRegistrationStatusHistory,
   getRegistrationStatusHistory,
-  
+
   // Complete data and utilities
   getCompleteRegistrationData,
   getRegistrationProgress,
-  
+
   // Dropdown queries
   getGenders,
   getNationalities,
@@ -1414,7 +1433,7 @@ updatePersonalInfo,
   getAvailableDays,
   getTimeSlots,
   getRelationshipTypes,
-getAllUsers,
+  getAllUsers,
   getSingleUsers,
   updateAccountInfo,
   updateStatus,

@@ -1063,7 +1063,7 @@ class DirectRegistrationController {
         await connection.rollback();
         return res.status(404).json({
           success: false,
-          error: { message: 'Registration session not found' }
+          error: { message: 'Registration not found' }
         });
       }
 
@@ -1563,7 +1563,7 @@ class DirectRegistrationController {
         });
       }
 
-      await connection.execute(queries.completeRegistration, [registrationId, mobile_number]);
+      await connection.execute(queries.completeRegistration, [mobile_number, registrationId]);
       await connection.execute(queries.insertRegistrationStatusHistory, [
         registrationId,
         oldStatus,
@@ -1585,7 +1585,6 @@ class DirectRegistrationController {
       });
 
     } catch (error) {
-      console.log(error)
       if (connection) await connection.rollback();
       return res.status(500).json({
         success: false,
@@ -2045,56 +2044,90 @@ class DirectRegistrationController {
     try {
       const { id } = req.params;
       const {
+        name,
         date_of_birth,
         gender_id,
-        nationality_id,
+        current_address,
+        permanent_address,
         languages_known,
-        id_proof_type_id,
-        id_proof_number,
+        city_id,
+        state_id,
+        pincode,
       } = req.body;
 
+      const [registrationCheck] = await db.execute(queries.checkRegistrationExists, [id]);
+      if (registrationCheck.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Registration not found' }
+        });
+      }
+
+      let profile_photo = null;
+
+      if (req.files) {
+        if (req.files.profile_photo) {
+          profile_photo = req.files.profile_photo[0].filename;
+        }
+      }
+
       await db.query(queries.updatePersonalInfo, [
+        name,
         date_of_birth,
         gender_id,
-        nationality_id,
         languages_known,
-        id_proof_type_id,
-        id_proof_number,
+        profile_photo,
         id,
       ]);
 
-      const profilePhoto = req.files?.profile_photo
-        ? req.files.profile_photo[0].filename
-        : null;
-      const idProof = req.files?.id_proof_document
-        ? req.files.id_proof_document[0].filename
-        : null;
+      await db.query(queries.updateContactInfo, [
+        current_address,
+        permanent_address,
+        state_id,
+        city_id,
+        pincode,
+        id,
+      ]);
 
-      if (profilePhoto || idProof) {
-        await db.query(queries.updatePersonalFiles, [profilePhoto, idProof, id]);
+      const dataPersonInfo = await db.execute(queries.getPersonalInfo, [id]);
+      let dataPersonOfData = {}
+      if (dataPersonInfo[0].length > 0) {
+        dataPersonOfData = dataPersonInfo[0][0]
       }
 
-      // lookup values
-      const [[g]] = gender_id
-        ? await db.query(queries.getGenderById, [gender_id])
-        : [[]];
-      const [[n]] = nationality_id
-        ? await db.query(queries.getNationalityById, [nationality_id])
-        : [[]];
-      const [[p]] = id_proof_type_id
-        ? await db.query(queries.getIdProofTypeById, [id_proof_type_id])
-        : [[]];
+
+      const getContactAddressData = await db.execute(queries.getContactAddress, [id]);
+
+      let dataContactAddressData = {}
+      if (getContactAddressData[0].length > 0) {
+        dataContactAddressData = getContactAddressData[0][0]
+      }
+
+      const completedData = { ...dataPersonOfData, ...dataContactAddressData };
+
+      const hasInvalidValue = Object.entries(completedData).some(
+        ([key, value]) =>
+          value === null || value === ""
+      );
+
+      const nextStep = hasInvalidValue ? 1 : 2
 
       res.json({
         success: true,
-        message: "Step 1 updated",
-        gender: g?.gender_name || null,
-        nationality: n?.nationality_name || null,
-        id_proof_type: p?.proof_type_name || null,
+        message: 'Personal information updated successfully',
+        data: {
+          currentStep: nextStep,
+          documentsStatus: 'pending_verification'
+        }
       });
-    } catch (err) {
-      console.error("SQL ERROR (updatePersonal):", err);
-      res.status(500).json({ success: false, error: err.message });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to update personal information',
+          details: error.message
+        }
+      });
     }
   }
 
@@ -2183,6 +2216,113 @@ class DirectRegistrationController {
   }
 
 
+  // ------------ Update Step 2 ---------------------
+  static async updateUploadDocuments(req, res) {
+     const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      const { id } = req.params;
+
+      const [registrationCheck] = await connection.execute(queries.checkRegistrationExists, [id]);
+      if (registrationCheck.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Registration not found' }
+        });
+      }
+
+      const {
+        id_proof_type_id_1,
+        id_proof_type_id_2
+      } = req.body;
+
+      let upload_proof_1 = null;
+      let upload_proof_2 = null;
+      let driving_license = null;
+      const documentsUploaded = [];
+
+      if (req.files) {
+
+        if (req.files.upload_proof_1 && req.files.upload_proof_1[0]) {
+          upload_proof_1 = req.files.upload_proof_1[0].filename;
+          documentsUploaded.push('upload_proof_1');
+        }
+        if (req.files.upload_proof_2 && req.files.upload_proof_2[0]) {
+          upload_proof_2 = req.files.upload_proof_2[0].filename;
+          documentsUploaded.push('upload_proof_2');
+        }
+        if (req.files.driving_license && req.files.driving_license[0]) {
+          driving_license = req.files.driving_license[0].filename;
+          documentsUploaded.push('driving_license');
+        }
+      }
+
+      const getIdProofDetails = await connection.execute(queries.getIdProofTypeId, [id_proof_type_id_1])
+      let id_proof_number = null
+      if (getIdProofDetails.length > 0) {
+        id_proof_number = getIdProofDetails[0][0].proof_type_name
+      }
+
+      const getIdProofDetails2 = await connection.execute(queries.getIdProofTypeId, [id_proof_type_id_2])
+      let id_proof_number_2 = null
+      if (getIdProofDetails2.length > 0) {
+        id_proof_number_2 = getIdProofDetails2[0][0].proof_type_name
+      }
+
+
+      await connection.execute(queries.UpdateDocumentUploads, [
+         id,
+        id_proof_type_id_1,
+        id_proof_number,
+        upload_proof_1,
+        id_proof_type_id_2,
+        id_proof_number_2,
+        upload_proof_2,
+        driving_license,
+       
+      ]);
+
+      const getDocumentUploads = await connection.execute(queries.getDocumentUploads, [id]);
+      let dataDocumentUploads = {}
+      if (getDocumentUploads[0].length > 0) {
+        dataDocumentUploads = getDocumentUploads[0][0]
+      }
+
+
+      const hasInvalidValue = Object.entries(dataDocumentUploads).some(
+        ([key, value]) =>
+          dataDocumentUploads?.id_proof_type_id_1 === 4 && dataDocumentUploads?.id_proof_type_id_2 === 4 &&
+          key === "driving_license" &&
+          (value === null || value === "")
+      );
+
+      const nextStep = hasInvalidValue ? 2 : 3
+      await connection.commit();
+      res.json({
+        success: true,
+        message: 'Documents uploaded successfully',
+        data: {
+          currentStep: nextStep,
+          documentsUploaded: documentsUploaded,
+          documentsStatus: 'pending_verification',
+          totalDocuments: documentsUploaded.length
+        }
+      });
+
+    } catch (error) {
+      await connection.rollback();
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to update personal information',
+          details: error.message
+        }
+      });
+    }
+  }
+
+
   // ---------- STEP 3 ----------
   // ---------- STEP 3: Update Service ----------
   static async updateService(req, res) {
@@ -2190,82 +2330,84 @@ class DirectRegistrationController {
       const { id } = req.params;
       const {
         service_type_id,
-        work_type_id,
         years_of_experience,
         expected_salary,
+        salary_type = 'monthly',
+        currency_code = 'INR',
         available_day_ids,
         time_slot_ids,
-        service_description
       } = req.body;
-
-      // 1️⃣ Lookup service type name
-      const [serviceRows] = await db.query(queries.getServiceNameById, [service_type_id]);
-      if (!serviceRows.length) {
-        return res.status(400).json({ success: false, message: "Invalid service_type_id" });
-      }
-      const serviceName = serviceRows[0].name;
-
-      // 2️⃣ Lookup work type name
-      const [workRows] = await db.query(queries.getWorkTypeNameById, [work_type_id]);
-      if (!workRows.length) {
-        return res.status(400).json({ success: false, message: "Invalid work_type_id" });
-      }
-      const workTypeName = workRows[0].work_type_name;
-
-      // 3️⃣ Handle file upload
-      const serviceImage = req.file ? req.file.filename : null;
-
-      // 4️⃣ Convert form-data values → JSON strings
-      let availableDaysJson = null;
-      if (available_day_ids) {
-        availableDaysJson = JSON.stringify(
-          Array.isArray(available_day_ids)
-            ? available_day_ids
-            : available_day_ids.split(",").map(Number)
-        );
+      
+      const [sessionResults] = await db.execute(queries.checkRegistrationExists, [id]);
+      if (sessionResults.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Registration session not found' }
+        });
       }
 
-      let timeSlotsJson = null;
-      if (time_slot_ids) {
-        timeSlotsJson = JSON.stringify(
-          Array.isArray(time_slot_ids)
-            ? time_slot_ids
-            : time_slot_ids.split(",").map(Number)
-        );
-      }
-
-      // 5️⃣ Keep existing description if not provided
-      const desc = service_description && service_description.trim() !== ""
-        ? service_description
-        : null;
-
-      // 6️⃣ Update service_information
-      await db.query(queries.updatesServiceInfo, [
-        service_type_id,
-        work_type_id,
-        years_of_experience,
+      const [salaryResult] = await db.execute(queries.updateSalaryExpectation, [
         expected_salary,
-        serviceImage,
-        availableDaysJson,
-        timeSlotsJson,
-        desc,
-        id
+        salary_type,
+        currency_code,
+        id,
       ]);
 
-      // ✅ Response
-      return res.json({
+      let salaryExpectationId;
+      if (salaryResult.insertId) {
+        salaryExpectationId = salaryResult.insertId;
+      } else {
+        const [existing] = await db.execute(
+          queries.getSalaryExpectationByRegistration,
+          [id]
+        );
+        salaryExpectationId = existing[0].expectation_id;
+      }
+      await db.execute(queries.updatesServiceInfo, [
+        service_type_id,
+        years_of_experience,
+        expected_salary,
+        JSON.stringify(available_day_ids),
+        JSON.stringify(time_slot_ids),
+        salaryExpectationId,
+        id,
+      ]);
+
+      const getSalaryExpectationByRegistrationData = await db.execute(queries.getSalaryExpectationByRegistrationStep3, [id]);
+
+      let dataSalaryExpectationByRegistration = {}
+      if (getSalaryExpectationByRegistrationData[0].length > 0) {
+        dataSalaryExpectationByRegistration = getSalaryExpectationByRegistrationData[0][0]
+      }
+
+      const getServiceInfoStep3Data = await db.execute(queries.getServiceInfoStep3, [id]);
+
+      let dataServiceInfoStep3 = {}
+      if (getServiceInfoStep3Data[0].length > 0) {
+        dataServiceInfoStep3 = getServiceInfoStep3Data[0][0]
+      }
+
+      const completedData = { ...dataSalaryExpectationByRegistration, ...dataServiceInfoStep3 };
+      const hasInvalidValue = Object.entries(completedData).some(
+        ([key, value]) =>
+          value === null || value === ""
+      );
+
+      const nextStep = hasInvalidValue ? 3 : 4
+      res.json({
         success: true,
-        message: "Step 3 - Service Information updated",
-        service: serviceName,
-        work_type: workTypeName,
-        available_days: availableDaysJson ? JSON.parse(availableDaysJson) : null,
-        time_slots: timeSlotsJson ? JSON.parse(timeSlotsJson) : null,
-        service_description: desc,
-        updatedId: id
+        message: 'Service information updated successfully',
+        data: {
+          currentStep: nextStep,
+          salaryExpectationId
+        }
       });
-    } catch (err) {
-      console.error("SQL ERROR (updateService):", err);
-      return res.status(500).json({ success: false, error: err.message });
+    } catch (error) {
+      console.log(error)
+      res.status(500).json({
+        success: false,
+        error: { message: 'Failed to save service information', details: error.message }
+      });
     }
   }
 
@@ -2343,34 +2485,116 @@ class DirectRegistrationController {
 
   // ---------- STEP 6 ----------
   static async updateAccount(req, res) {
+    const connection = await db.getConnection();
+
     try {
+      await connection.beginTransaction();
       const { id } = req.params;
       const {
-        full_name,
-        email_address,
-        mobile_number,
         bank_account_holder_name,
         account_number,
+        mobile_number,
         ifsc_code,
       } = req.body;
 
-      const bankDoc = req.file ? req.file.filename : null;
+      // ✅ Get session info
+      const [sessionResults] = await connection.execute(queries.checkRegistrationExists, [id]);
+      if (sessionResults.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({
+          success: false,
+          error: { message: 'Registration not found' }
+        });
+      }
 
-      await db.query(queries.updatesAccountInfo, [
-        full_name,
-        email_address,
+      // Validate required fields
+      const missingFields = [];
+      if (!bank_account_holder_name) missingFields.push('bank_account_holder_name');
+      if (!account_number) missingFields.push('account_number');
+      if (!mobile_number) missingFields.push('mobile_number');
+      if (!ifsc_code) missingFields.push('ifsc_code');
+
+      if (missingFields.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: `Missing required fields: ${missingFields.join(', ')}`,
+            missingFields
+          }
+        });
+      }
+
+
+      // Check for duplicates
+      const [mobileResults] = await connection.execute(queries.checkMobileExistsNotEqual, [id, mobile_number]);
+      if (mobileResults.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Mobile number already exists' }
+        });
+      }
+
+      let cancelled_cheque_passbook = null;
+      if (req.file) {
+        cancelled_cheque_passbook = req.file.filename;
+      }
+
+      await connection.execute(queries.updateAccountInfo, [
         mobile_number,
         bank_account_holder_name,
         account_number,
         ifsc_code,
-        bankDoc,
-        id,
+        cancelled_cheque_passbook,
+        id
       ]);
 
-      res.json({ success: true, message: "Step 6 updated" });
-    } catch (err) {
-      console.error("SQL ERROR (updateAccount):", err);
-      res.status(500).json({ success: false, error: err.message });
+      const getAccountInfoData = await connection.execute(queries.getAccountInfoStep4, [id]);
+      let dataAccountInfoData = {}
+      if (getAccountInfoData[0].length > 0) {
+        dataAccountInfoData = getAccountInfoData[0][0]
+      }
+
+      const hasInvalidValue = Object.entries(dataAccountInfoData).some(
+        ([key, value]) =>
+          value === null || value === ""
+      );
+
+      if (hasInvalidValue) {
+        await connection.commit();
+        return res.json({
+          success: true,
+          message: 'Account information updated successfully',
+          data: {
+            currentStep: 4,
+          }
+        });
+      }
+
+      await connection.execute(queries.completeRegistration, [mobile_number, id]);
+      await connection.commit();
+
+      return res.json({
+        success: true,
+        message: 'Registration updated successfully!',
+        data: {
+          registrationCompleted: true,
+          cancelled_cheque_passbook: cancelled_cheque_passbook || null
+        }
+      });
+
+    } catch (error) {
+      if (connection) await connection.rollback();
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to complete registration',
+          details: error.message
+        }
+      });
+    } finally {
+      if (connection) connection.release();
     }
   }
 
