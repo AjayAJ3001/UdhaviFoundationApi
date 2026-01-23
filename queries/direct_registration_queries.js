@@ -928,6 +928,7 @@ const updatesServiceInfo = `
       expected_salary = ?,
       available_day_ids = ?,
       time_slot_ids = ?,
+      salary_expectation_id = ?,
       updated_at = NOW()
   WHERE registration_id = ?;
 `;
