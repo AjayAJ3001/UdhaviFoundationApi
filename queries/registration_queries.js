@@ -156,6 +156,29 @@ const updateRegistrationStep = `
   WHERE session_token = ?
 `;
 
+const getRegistrationIdByMobile = `
+  SELECT registration_id FROM account_information WHERE mobile_number = ? LIMIT 1;
+`;
+
+// Update account profile
+const updateAccountProfile = `
+   UPDATE account_information 
+   SET full_name = ?, email_address = ? 
+   WHERE mobile_number = ?`;
+
+
+// Update user profile
+const updateUserProfile =  `
+UPDATE personal_information 
+SET gender_id = ?, date_of_birth = ? 
+WHERE registration_id = ?`;   
+
+// Update contact details
+const updateContactDetails = `
+UPDATE contact_address_details 
+SET current_address = ?, city_id = ?, state_id = ?, pincode = ? 
+WHERE registration_id = ?`
+
 // Complete registration and set status to submitted
 const completeRegistration = `
   UPDATE user_registrations 
@@ -792,6 +815,7 @@ const getServiceInfoStep3 = `
 const getAccountInfoStep4 = `
   SELECT 
     full_name,
+    bank_account_holder_name,
     account_number,
     ifsc_code,
     cancelled_cheque_passbook
@@ -808,7 +832,7 @@ const setIdProofTypeId = `
 `;
 
 
-const getIdProofTypeId= `SELECT 
+const getIdProofTypeId = `SELECT 
   id_proof_type_id,
   proof_type_name
 FROM id_proof_types
@@ -863,12 +887,14 @@ module.exports = {
   getPersonalInfoStep1,
   setIdProofTypeId,
   getPersonalInfoIdProof,
+  updateUserProfile,
 
   // Contact & Address (Step 2)
   insertContactAddress,
   getContactAddress,
   getContactAddressStep1,
-
+  getRegistrationIdByMobile,
+  updateContactDetails,
   // Service Information (Step 3) with Salary Expectation
   insertSalaryExpectation,
   insertServiceInfo,
@@ -887,6 +913,7 @@ module.exports = {
   insertDocumentUploads,
   getDocumentUploads,
   insertDocumentVerificationLog,
+  updateAccountProfile,
 
   // Account Information (Step 6) - MODIFIED
   insertAccountInfo,

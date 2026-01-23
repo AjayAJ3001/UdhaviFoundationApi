@@ -400,7 +400,7 @@ class DirectRegistrationController {
 
       await db.execute(queries.insertPersonalInfo, cleanData({
         registrationId, date_of_birth, gender_id, profile_photo,
-        languages_known, name
+        name, languages_known
       }));
 
       const dataPersonInfo = await db.execute(queries.getPersonalInfo, [registrationId]);

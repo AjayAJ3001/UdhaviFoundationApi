@@ -31,6 +31,7 @@ const getSalaryExpectationByRegistrationStep3 = `
 const getAccountInfoStep4 = `
   SELECT 
     full_name,
+    bank_account_holder_name,
     account_number,
     ifsc_code,
     mobile_number,

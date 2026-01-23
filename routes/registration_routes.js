@@ -374,6 +374,10 @@ router.post('/step6/:sessionToken',
   registrationController.saveBackgroundCheck
 );
 
+router.put('/user/update',
+  registrationController.updateUserProfile
+);
+
 // ====== STEP 5: DOCUMENT UPLOADS WITH VERIFICATION STATUS ======
 
 /**

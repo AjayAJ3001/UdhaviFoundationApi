@@ -703,6 +703,58 @@ class RegistrationController {
     //     }
     // }
 
+    // ✅ Update user profile
+    static async updateUserProfile(req, res) {
+        const {
+            mobile_number,
+            full_name,
+            email_address,
+            gender_id,
+            date_of_birth,
+            current_address,
+            city_id,
+            state_id,
+            pincode
+        } = req.body;
+
+        try {
+            if (!mobile_number) {
+                return res.status(400).json({ success: false, message: "mobile_number is required" });
+            }
+
+            // Update account info
+            const [accountResult] = await db.execute(queries.updateAccountProfile, [full_name, email_address, mobile_number]);
+
+            if (accountResult.affectedRows === 0) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+
+            // Get registration_id
+            const [regRows] = await db.query(queries.getRegistrationIdByMobile, [mobile_number]);
+            const registration_id = regRows[0]?.registration_id;
+
+            if (!registration_id) {
+                return res.status(404).json({ success: false, message: "Registration not found" });
+            }
+
+            // Update personal_information
+            const [profileResult] = await db.execute(queries.updateUserProfile, [gender_id, date_of_birth, registration_id]);
+            if (profileResult.affectedRows === 0) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+
+           // Update contact_address_details
+            const [contactResult] = await db.execute(queries.updateContactDetails, [current_address, city_id, state_id, pincode, registration_id]);
+            if (contactResult.affectedRows === 0) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+
+            res.json({ success: true, message: "User profile updated successfully" });
+        } catch (err) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    }
+
 
     static async savePersonalInfo(req, res) {
         try {
@@ -745,7 +797,7 @@ class RegistrationController {
 
             await db.execute(queries.insertPersonalInfo1, cleanData({
                 registrationId, date_of_birth, gender_id, profile_photo,
-                languages_known, name,
+                name, languages_known
             }));
 
             const dataPersonInfo = await db.execute(queries.getPersonalInfoStep1, [registrationId]);
