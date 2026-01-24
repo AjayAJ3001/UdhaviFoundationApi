@@ -743,6 +743,12 @@ class RegistrationController {
                 return res.status(404).json({ success: false, message: "User not found" });
             }
 
+            // Update personal_information
+            const [profileInformationResult] = await db.execute(queries.updateProfileInformation, [full_name, registration_id]);
+            if (profileInformationResult.affectedRows === 0) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+
            // Update contact_address_details
             const [contactResult] = await db.execute(queries.updateContactDetails, [current_address, city_id, state_id, pincode, registration_id]);
             if (contactResult.affectedRows === 0) {

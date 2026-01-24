@@ -167,6 +167,13 @@ const updateAccountProfile = `
    WHERE mobile_number = ?`;
 
 
+// Update account profile
+const updateProfileInformation = `
+   UPDATE personal_information 
+   SET name = ? 
+   WHERE registration_id = ?`;
+
+
 // Update user profile
 const updateUserProfile =  `
 UPDATE personal_information 
@@ -818,6 +825,8 @@ const getAccountInfoStep4 = `
     bank_account_holder_name,
     account_number,
     ifsc_code,
+    email_address,
+    mobile_number,
     cancelled_cheque_passbook
   FROM account_information
   WHERE registration_id = ?
@@ -888,6 +897,7 @@ module.exports = {
   setIdProofTypeId,
   getPersonalInfoIdProof,
   updateUserProfile,
+  updateProfileInformation,
 
   // Contact & Address (Step 2)
   insertContactAddress,
