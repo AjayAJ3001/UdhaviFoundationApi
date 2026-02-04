@@ -2402,7 +2402,6 @@ try {
         try {
             const {
                 customer_id,
-                booking_id,
                 service_id,
                 address,
                 location_lat,
@@ -2442,12 +2441,13 @@ try {
             }
 
             // Generate booking ID
+            const booking_id = 'BK' + Date.now();
 
             const bookingData = {
                 booking_id,
                 customer_id,
                 service_id,
-                customer_filters: null,
+                customer_filters: customerFilters.selected_filters,
                 service_address: address,
                 location_lat: parseFloat(location_lat) || null,
                 location_lng: parseFloat(location_lng) || null,
