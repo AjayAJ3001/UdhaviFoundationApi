@@ -133,6 +133,7 @@ class RegistrationController {
                     mobile_number: maskedMobile,
                     otp_expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
                     masked_mobile: maskedMobile,
+                    otp: otp,
                     isExistingUser,
                     navigateTo: isExistingUser ? 'service-provider' : 'register',
                     registrationStatus: user.registration_status || null,
