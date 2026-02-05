@@ -39,24 +39,26 @@ const tempCustomerSignup = async (req, res) => {
 
         if (existingCustomer) {
             // Login flow for existing customer
-            const otp = generateOTP();
-            const sessionToken = generateSessionToken();
-            const otpExpiry = new Date(Date.now() + 40 * 1000);
+            // const otp = generateOTP();
+            // const sessionToken = generateSessionToken();
+            // const otpExpiry = new Date(Date.now() + 40 * 1000);
 
-            await tempCustomerQueries.updateTempCustomerOTP(existingCustomer.id, otp, otpExpiry, sessionToken);
-            await tempCustomerQueries.logOTPAttempt(mobile, otp, 'existing_login', getClientIP(req), req.headers['user-agent']);
+            // await tempCustomerQueries.updateTempCustomerOTP(existingCustomer.id, otp, otpExpiry, sessionToken);
+            // await tempCustomerQueries.logOTPAttempt(mobile, otp, 'existing_login', getClientIP(req), req.headers['user-agent']);
 
-            console.log(`Login OTP for existing customer (${mobile}): ${otp}`);
+            // console.log(`Login OTP for existing customer (${mobile}): ${otp}`);
 
             return res.status(200).json({
                 success: true,
                 message: 'Mobile number already registered. OTP sent for login verification.',
+                action: 'existing_mobile',
                 data: {
                     customerId: existingCustomer.id,
-                    sessionToken,
+                    sessionToken: null,
                     isExistingCustomer: true,
+                    isNewCustomer: false,
                     customerName: existingCustomer.name,
-                    otp
+                    otp: null
                 }
             });
         }
@@ -68,7 +70,15 @@ const tempCustomerSignup = async (req, res) => {
                 return res.status(409).json({
                     success: false,
                     message: 'Email is already registered with another account.',
-                    action: 'existing_email'
+                    action: 'existing_email',
+                    data: {
+                      customerId: existingByEmail.id,
+                      sessionToken: null,
+                      isExistingCustomer: true,
+                      isNewCustomer: false,
+                      customerName: existingByEmail.name,
+                      otp: null
+                }
                 });
             }
         }
@@ -79,7 +89,15 @@ const tempCustomerSignup = async (req, res) => {
                 return res.status(409).json({
                     success: false,
                     message: 'Name is already taken. Please choose a different name.',
-                    action: 'existing_name'
+                    action: 'existing_name',
+                     data: {
+                      customerId: existingByName.id,
+                      sessionToken: null,
+                      isExistingCustomer: true,
+                      isNewCustomer: false,
+                      customerName: existingByName.name,
+                      otp: null
+                }
                 });
             }
         }
@@ -108,10 +126,13 @@ const tempCustomerSignup = async (req, res) => {
         return res.status(201).json({
             success: true,
             message: 'New customer registered! OTP sent successfully to your mobile number.',
+            action: 'new_customer',
             data: {
                 customerId,
                 sessionToken,
+                isExistingCustomer: false,
                 isNewCustomer: true,
+                customerName: name,
                 otp
             }
         });
