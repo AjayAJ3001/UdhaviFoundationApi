@@ -112,6 +112,8 @@ router.post('/signup',
     tempCustomerController.tempCustomerSignup
 );
 
+
+
 // EXISTING Customer Login - only mobile number needed, for returning customers
 router.post('/login', 
     mobileValidation, 
@@ -165,6 +167,26 @@ router.get('/profile',
     checkTempCustomerAccess,
     tempCustomerController.getTempCustomerProfile
 );
+
+router.get('/genders', tempCustomerController.getGenders);
+
+router.get('/states', tempCustomerController.getStates);
+
+
+router.get('/states/:state_id', tempCustomerController.getCities);
+
+
+// Get Customer fetch
+router.get('/:customerId', 
+    tempCustomerController.getTempCustomerFetch
+);
+
+router.put('/:customerId', 
+    tempCustomerController.getTempCustomerProfileUpdate
+);
+
+
+
 
 // === ENHANCED ROUTES FOR BETTER UX ===
 

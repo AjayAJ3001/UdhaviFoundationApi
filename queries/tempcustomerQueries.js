@@ -1,4 +1,5 @@
 const db = require('../database/connection');
+const queries = require('../queries/dropdown_queries');
 
 // Create temporary customer
 const createTempCustomer = async (customerData) => {
@@ -265,6 +266,48 @@ const saveTempCustomerServices = async (customerId, serviceIds) => {
 };
 
 // Get temporary customer profile with services and location (UPDATED)
+const getTemporaryCustomerProfile = async (customerId) => {
+    try {
+        const query = `
+            SELECT 
+                tc.id as customerId,
+                tc.name,
+                tc.email,
+                tc.mobile,
+                tc.city_id,
+                tc.pincode,
+                tc.state_id,
+                tc.gender_id,
+                tc.date_of_birth,
+                tc.current_address,
+                tc.preferred_location_id,
+                tc.created_at,
+                pl.location_name as preferred_location_name,
+                st.state_name,
+                ct.city_name,
+                gd.gender_name
+            FROM temp_customers tc
+            LEFT JOIN preferred_locations pl ON tc.preferred_location_id = pl.location_id
+            LEFT JOIN states st ON tc.state_id = st.state_id
+            LEFT JOIN cities ct ON tc.city_id = ct.city_id
+            LEFT JOIN genders gd ON tc.gender_id = gd.gender_id
+            WHERE tc.id = ? AND tc.is_active = 1
+        `;
+        const [customerRows] = await db.execute(query, [customerId]);
+        
+        if (customerRows.length === 0) {
+            return null;
+        }
+        
+        const customer = customerRows[0];
+        
+        return customer;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Get temporary customer profile with services and location (UPDATED)
 const getTempCustomerProfile = async (customerId) => {
     try {
         const query = `
@@ -274,6 +317,7 @@ const getTempCustomerProfile = async (customerId) => {
                 tc.email,
                 tc.mobile,
                 tc.is_mobile_verified,
+                tc.selected_address as current_address,
                 tc.current_latitude,
                 tc.current_longitude,
                 tc.selected_address,
@@ -1100,6 +1144,125 @@ const getServiceProvidersForLastSearch = async (customerId) => {
     }
 };
 
+// Get Genders
+const getGenders = async () => {
+    try {
+        const [rows] = await db.execute(queries.getGenders);
+        return rows;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Get States
+const getStates = async () => {
+    try {
+        const [rows] = await db.execute(queries.getAllStates);
+        return rows;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Get cities
+const getCities = async (state_id) => {
+    try {
+        const [rows] = await db.execute(queries.getAllCitiesByState, [state_id]);
+        return rows;
+    } catch (error) {
+        throw error;
+    }
+};
+
+
+// Get temp customer exist check while updating
+const getTempCustomerExistCheck = async (mobile, tempCustomerId) => {
+    try {
+        const query = `
+            SELECT *
+            FROM temp_customers
+            WHERE mobile = ?
+              AND id != ?
+              AND is_active = 1
+        `;
+        const [rows] = await db.execute(query, [mobile, tempCustomerId]);        
+        return rows.length > 0;
+    } catch (error) {
+        console.error('Get temp customer by mobile (update check) error:', error);
+        throw error;
+    }
+};
+
+// Get temp customer exist check while updating
+const getTempCustomerNameExistCheck = async (mobile, tempCustomerId) => {
+    try {
+        const query = `
+            SELECT *
+            FROM temp_customers
+            WHERE name = ?
+              AND id != ?
+              AND is_active = 1
+        `;
+        const [rows] = await db.execute(query, [mobile, tempCustomerId]);
+        console.log(rows);
+        
+        return rows.length > 0;
+    } catch (error) {
+        console.error('Get temp customer by mobile (update check) error:', error);
+        throw error;
+    }
+};
+
+// Get temp customer exist check while updating
+const getTempCustomerEmailExistCheck = async (mobile, tempCustomerId) => {
+    try {
+        const query = `
+            SELECT *
+            FROM temp_customers
+            WHERE email = ?
+              AND id != ?
+              AND is_active = 1
+        `;
+        const [rows] = await db.execute(query, [mobile, tempCustomerId]);
+        console.log(rows);
+        
+        return rows.length > 0;
+    } catch (error) {
+        console.error('Get temp customer by mobile (update check) error:', error);
+        throw error;
+    }
+};
+
+
+const updateTempCustomerProfile = async (profileData) => {
+  try {
+    const query = `
+      UPDATE temp_customers
+      SET
+        name = ?,
+        email = ?,
+        gender_id = ?,
+        city_id = ?,
+        pincode = ?,
+        state_id = ?,
+        date_of_birth = ?,
+        current_address = ?,
+        preferred_location_id = ?
+      WHERE id = ?
+    `;
+
+    const [result] = await db.execute(query, profileData);
+    return result.affectedRows;
+
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+
+
+
 module.exports = {
   getServiceProvidersForLastSearch, 
 getAllSearchHistory,
@@ -1141,5 +1304,13 @@ getAllSearchHistory,
     getFormattedLastSearch,
     getFreshServiceProviders,
     getTempCustomerByEmail,
-    getTempCustomerByName
+    getTempCustomerByName,
+    getTemporaryCustomerProfile,
+    getGenders,
+    getCities,
+    getStates,
+    getTempCustomerExistCheck,
+    updateTempCustomerProfile,
+    getTempCustomerNameExistCheck,
+    getTempCustomerEmailExistCheck
 };
