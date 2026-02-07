@@ -112,11 +112,6 @@ router.get('/assigned-providers/booking/:booking_id',
  * @access  Private
  */
 router.post('/verify-assignment',
-    [
-        body('service_provider_id').isInt().withMessage('Service provider ID is required'),
-        body('booking_id').notEmpty().withMessage('Booking ID is required'),
-        body('customer_id').isInt().withMessage('Customer ID is required')
-    ],
     AttendancePayrollController.verifyAssignment
 );
 

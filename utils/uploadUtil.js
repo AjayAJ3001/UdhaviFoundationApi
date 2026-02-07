@@ -77,6 +77,8 @@ const uploadConfigs = {
     multipleDocuments: upload.fields([
         { name: 'profile_photo', maxCount: 1 },
         { name: 'id_proof_document', maxCount: 1 },
+        { name: 'upload_proof_1', maxCount: 1 },
+        { name: 'upload_proof_2', maxCount: 1 },
         { name: 'resume_bio_data', maxCount: 1 },
         { name: 'driving_license', maxCount: 1 },
         { name: 'experience_certificates', maxCount: 1 },

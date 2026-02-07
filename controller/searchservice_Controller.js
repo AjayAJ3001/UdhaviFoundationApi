@@ -41,6 +41,7 @@ class SimpleController {
       const query = `
         SELECT 
           psc.provider_id as service_provider_id,
+          psc.service_image_url,
           ai.full_name as service_provider_name,
           COALESCE(psc.latitude, 13.0827) as latitude,
           COALESCE(psc.longitude, 80.2707) as longitude,
@@ -84,11 +85,12 @@ class SimpleController {
         latitude,
         service_id,
         radius
-      ]);
+      ]);      
 
       const formattedProviders = providers.map(p => ({
         service_provider_id: p.service_provider_id,
         service_provider_name: p.service_provider_name,
+        service_image_url: p.service_image_url,
         latitude: parseFloat(p.latitude),
         longitude: parseFloat(p.longitude),
         service_id: parseInt(p.service_id),

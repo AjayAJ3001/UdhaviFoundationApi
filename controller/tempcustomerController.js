@@ -39,24 +39,26 @@ const tempCustomerSignup = async (req, res) => {
 
         if (existingCustomer) {
             // Login flow for existing customer
-            const otp = generateOTP();
-            const sessionToken = generateSessionToken();
-            const otpExpiry = new Date(Date.now() + 40 * 1000);
+            // const otp = generateOTP();
+            // const sessionToken = generateSessionToken();
+            // const otpExpiry = new Date(Date.now() + 40 * 1000);
 
-            await tempCustomerQueries.updateTempCustomerOTP(existingCustomer.id, otp, otpExpiry, sessionToken);
-            await tempCustomerQueries.logOTPAttempt(mobile, otp, 'existing_login', getClientIP(req), req.headers['user-agent']);
+            // await tempCustomerQueries.updateTempCustomerOTP(existingCustomer.id, otp, otpExpiry, sessionToken);
+            // await tempCustomerQueries.logOTPAttempt(mobile, otp, 'existing_login', getClientIP(req), req.headers['user-agent']);
 
-            console.log(`Login OTP for existing customer (${mobile}): ${otp}`);
+            // console.log(`Login OTP for existing customer (${mobile}): ${otp}`);
 
             return res.status(200).json({
                 success: true,
                 message: 'Mobile number already registered. OTP sent for login verification.',
+                action: 'existing_mobile',
                 data: {
                     customerId: existingCustomer.id,
-                    sessionToken,
+                    sessionToken: null,
                     isExistingCustomer: true,
+                    isNewCustomer: false,
                     customerName: existingCustomer.name,
-                    otp
+                    otp: null
                 }
             });
         }
@@ -68,7 +70,15 @@ const tempCustomerSignup = async (req, res) => {
                 return res.status(409).json({
                     success: false,
                     message: 'Email is already registered with another account.',
-                    action: 'existing_email'
+                    action: 'existing_email',
+                    data: {
+                      customerId: existingByEmail.id,
+                      sessionToken: null,
+                      isExistingCustomer: true,
+                      isNewCustomer: false,
+                      customerName: existingByEmail.name,
+                      otp: null
+                }
                 });
             }
         }
@@ -79,7 +89,15 @@ const tempCustomerSignup = async (req, res) => {
                 return res.status(409).json({
                     success: false,
                     message: 'Name is already taken. Please choose a different name.',
-                    action: 'existing_name'
+                    action: 'existing_name',
+                     data: {
+                      customerId: existingByName.id,
+                      sessionToken: null,
+                      isExistingCustomer: true,
+                      isNewCustomer: false,
+                      customerName: existingByName.name,
+                      otp: null
+                }
                 });
             }
         }
@@ -108,10 +126,13 @@ const tempCustomerSignup = async (req, res) => {
         return res.status(201).json({
             success: true,
             message: 'New customer registered! OTP sent successfully to your mobile number.',
+            action: 'new_customer',
             data: {
                 customerId,
                 sessionToken,
+                isExistingCustomer: false,
                 isNewCustomer: true,
+                customerName: name,
                 otp
             }
         });
@@ -515,6 +536,37 @@ const getTempCustomerProfile = async (req, res) => {
     }
 };
 
+const getTempCustomerFetch = async (req, res) => {
+    try {
+
+        const { customerId } = req.params;
+
+        const customerProfile = await tempCustomerQueries.getTemporaryCustomerProfile(customerId);
+
+        if (!customerProfile) {
+            return res.status(404).json({
+                success: false,
+                message: 'Customer profile not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Profile retrieved successfully',
+            data: customerProfile
+        });
+
+    } catch (error) {
+        console.error('Get profile error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+
+
 // Resend OTP (unchanged)
 const resendTempCustomerOTP = async (req, res) => {
     try {
@@ -568,6 +620,169 @@ const resendTempCustomerOTP = async (req, res) => {
         });
     }
 };
+
+// Get states 
+const getStates = async (req, res) => {
+    try {
+        const states = await tempCustomerQueries.getStates();
+        
+        res.status(200).json({
+            success: true,
+            message: 'States retrieved successfully',
+            data: states
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+// Get Cities 
+const getCities = async (req, res) => {
+    try {
+
+        const { state_id } = req.params;
+
+        if (!state_id) {
+            return res.status(400).json({
+                success: false,
+                error: { message: 'State ID is required' }
+            });
+        }
+        const cities = await tempCustomerQueries.getCities(state_id);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Cities retrieved successfully',
+            data: cities
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+// Get states 
+const getGenders = async (req, res) => {
+    try {
+        const genders = await tempCustomerQueries.getGenders();
+        
+        res.status(200).json({
+            success: true,
+            message: 'Genders retrieved successfully',
+            data: genders
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+
+const getTempCustomerProfileUpdate = async (req, res) => {
+    try {
+
+        const { customerId } = req.params
+
+         if (!customerId) {
+            return res.status(400).json({
+                success: false,
+                message: 'customerId is required'
+            });
+        }
+
+        const {
+               name,
+               email,
+               mobile,
+               gender_id,
+               city_id,
+               pincode,
+               state_id,
+               date_of_birth,
+               current_address,
+               preferred_location_id
+         } = req.body;
+
+        const customerProfile = await tempCustomerQueries.getTemporaryCustomerProfile(customerId);
+
+        if (!customerProfile) {
+            return res.status(404).json({
+                success: false,
+                message: 'Customer profile not found'
+            });
+        }
+
+        const existingMobile = await tempCustomerQueries.getTempCustomerExistCheck(mobile, customerId)
+
+        if (existingMobile) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mobile number already registered with another account.'
+            });
+        }
+
+        const existingName = await tempCustomerQueries.getTempCustomerNameExistCheck(mobile, name)
+
+        if (existingName) {
+            return res.status(400).json({
+                success: false,
+                message: 'Customer Name already registered with another account.'
+            });
+        }
+
+        const existingEmail = await tempCustomerQueries.getTempCustomerEmailExistCheck(mobile, email)
+
+        if (existingEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Customer Email already registered with another account.'
+            });
+        }
+
+        const params = [
+                        name,
+                        email,
+                        gender_id,
+                        city_id,
+                        pincode,
+                        state_id,
+                        date_of_birth,
+                        current_address,
+                        preferred_location_id,
+                        customerId
+         ];
+
+        const customerProfileUpdate = await tempCustomerQueries.updateTempCustomerProfile(params);
+
+        const customerProfileUpdateData = await tempCustomerQueries.getTemporaryCustomerProfile(customerId);
+        return res.status(200).json({
+            success: true,
+            message: 'Profile retrieved successfully',
+            data: customerProfileUpdateData
+        });
+
+
+    } catch (error) {
+       return res.status(500).json({
+            success: false,
+            message: 'Customer Profile updating error'
+        });
+    }
+ }
+
+
+
+
 
 // Get preferred locations (unchanged)
 const getPreferredLocations = async (req, res) => {
@@ -757,5 +972,10 @@ getAllSearchHistory,
     getTempCustomerProfile,
     resendTempCustomerOTP,
     getPreferredLocations,
-    tempCustomerSignup
+    tempCustomerSignup,
+    getTempCustomerFetch,
+    getStates,
+    getGenders,
+    getCities,
+    getTempCustomerProfileUpdate
 };

@@ -444,10 +444,10 @@ const getAttendanceByDate = async (service_provider_id, attendance_date) => {
             SELECT 
                 a.*,
                 ai_sp.full_name as provider_name,
-                ai_c.full_name as customer_name
+                ai_c.name as customer_name
             FROM sp_attendance a
             JOIN account_information ai_sp ON a.service_provider_id = ai_sp.registration_id
-            JOIN account_information ai_c ON a.customer_id = ai_c.registration_id
+            JOIN temp_customers ai_c ON a.customer_id = ai_c.id
             WHERE a.service_provider_id = ? AND a.attendance_date = ?
         `;
         
@@ -464,12 +464,12 @@ const getMonthlyAttendance = async (service_provider_id, month, year) => {
         const query = `
             SELECT 
                 a.*,
-                ai_c.full_name as customer_name,
+                ai_c.name as customer_name,
                 DATE_FORMAT(a.attendance_date, '%d/%m/%Y') as date_formatted,
                 DATE_FORMAT(a.check_in_time, '%h:%i %p') as check_in_formatted,
                 DATE_FORMAT(a.check_out_time, '%h:%i %p') as check_out_formatted
             FROM sp_attendance a
-            JOIN account_information ai_c ON a.customer_id = ai_c.registration_id
+            JOIN temp_customers ai_c ON a.customer_id = ai_c.id
             WHERE a.service_provider_id = ?
             AND MONTH(a.attendance_date) = ?
             AND YEAR(a.attendance_date) = ?
